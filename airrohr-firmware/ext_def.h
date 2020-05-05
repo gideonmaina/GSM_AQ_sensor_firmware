@@ -15,6 +15,8 @@ const char WWW_PASSWORD[] PROGMEM = "feinstaub";
 #define FS_PWD ""
 
 // Where to send the data?
+#define SEND2CFA 1
+#define SSL_CFA 0
 #define SEND2SENSORCOMMUNITY 1
 #define SSL_SENSORCOMMUNITY 0
 #define SEND2MADAVI 1
@@ -32,6 +34,7 @@ const char WWW_PASSWORD[] PROGMEM = "feinstaub";
 #define SENSEBOXID ""
 
 enum LoggerEntry {
+    LoggerCFA,
     LoggerSensorCommunity,
     LoggerMadavi,
     LoggerSensemap,
@@ -53,6 +56,10 @@ struct LoggerConfig {
 };
 
 // IMPORTANT: NO MORE CHANGES TO VARIABLE NAMES NEEDED FOR EXTERNAL APIS
+static const char HOST_CFA[] PROGMEM = "api.airquality.codeforafrica.org";
+static const char URL_CFA[] PROGMEM = " /v1/push-sensor-data/";
+#define PORT_CFA 80
+
 static const char HOST_MADAVI[] PROGMEM = "api-rrd.madavi.de";
 static const char URL_MADAVI[] PROGMEM = "/data.php";
 #define PORT_MADAVI 80
@@ -92,15 +99,15 @@ static const char URL_CUSTOM[] PROGMEM = "/data.php";
 #define SSL_CUSTOM 0
 
 // define own InfluxDB
-static const char HOST_INFLUX[] PROGMEM = "influx.server";
-static const char URL_INFLUX[] PROGMEM = "/write?db=sensorcommunity";
+static const char HOST_INFLUX[] PROGMEM = "http://ec2-34-250-53-214.eu-west-1.compute.amazonaws.com";
+static const char URL_INFLUX[] PROGMEM = "/write?db=airquality";
 #define PORT_INFLUX 8086
 #define USER_INFLUX ""
 #define PWD_INFLUX ""
-static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = "feinstaub";
+static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define SSL_INFLUX 0
 
-//  === pin assignments for NodeMCU V2 board ===================================
+//  pin assignments for NodeMCU V2 board
 #if defined(ESP8266)
 // define pin for one wire sensors
 #define ONEWIRE_PIN D7
@@ -127,7 +134,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = "feinstaub";
 #endif
 
 
-//  === pin assignments for Arduino SAMD Zero board ===================================
+// pin assignments for Arduino SAMD Zero board
 #if defined(ARDUINO_SAMD_ZERO)
 #define ONEWIRE_PIN D7
 #define PPD_PIN_PM1 GPS_SERIAL_TX
@@ -139,7 +146,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = "feinstaub";
 #endif
 #endif
 
-//  === pin assignments for lolin_d32_pro board ===================================
+// pin assignments for lolin_d32_pro board
 #if defined(ARDUINO_LOLIN_D32_PRO)
 #define ONEWIRE_PIN D32
 #define PM_SERIAL_RX D27
@@ -162,7 +169,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = "feinstaub";
 //#define RFM69_INT D4
 #endif
 
-//  === pin assignments for heltec_wifi_lora_32_V2 board ===================================
+// pin assignments for heltec_wifi_lora_32_V2 board
 #if defined(WIFI_LoRa_32_V2)
 #define ONEWIRE_PIN D32
 #define I2C_PIN_SCL D22
@@ -175,7 +182,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = "feinstaub";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
-//  === pin assignments for heltec_wifi_lora_32 board ===================================
+// pin assignments for heltec_wifi_lora_32 board
 #if defined(WIFI_LoRa_32)
 #define ONEWIRE_PIN D25 // TODO: this overlaps with LED, so it might not work
 #define I2C_PIN_SCL D22
