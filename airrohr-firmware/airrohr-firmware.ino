@@ -223,6 +223,7 @@ namespace cfg {
 	bool gps_read = GPS_READ;
 
 	// send to "APIs"
+	bool send2cfa = SEND2CFA;
 	bool send2dusti = SEND2SENSORCOMMUNITY;
 	bool send2madavi = SEND2MADAVI;
 	bool send2sensemap = SEND2SENSEMAP;
@@ -248,6 +249,7 @@ namespace cfg {
 	bool display_device_info = DISPLAY_DEVICE_INFO;
 
 	// API settings
+	bool ssl_cfa = SSL_CFA;
 	bool ssl_madavi = SSL_MADAVI;
 	bool ssl_dusti = SSL_SENSORCOMMUNITY;
 	char senseboxid[LEN_SENSEBOXID] = SENSEBOXID;
@@ -997,6 +999,13 @@ static void createLoggerConfigs() {
 #else
 	auto new_session = []() { return nullptr; };
 #endif
+  	if (cfg::send2cfa) {
+    	loggerConfigs[LoggerCFA].destport = 80;
+    	if (cfg::ssl_cfa) {
+      		loggerConfigs[LoggerCFA].destport = 80;
+      		loggerConfigs[LoggerCFA].session = new_session();
+    	}
+  	}
 	if (cfg::send2dusti) {
 		loggerConfigs[LoggerSensorCommunity].destport = 80;
 		if (cfg::ssl_dusti) {
@@ -4075,6 +4084,9 @@ static void logEnabledAPIs() {
 	if (cfg::send2dusti) {
 		debug_outln_info(F("sensor.community"));
 	}
+  	if (cfg::send2cfa) {
+    	debug_outln_info(F("CFA"));
+  	}
 
 	if (cfg::send2fsapp) {
 		debug_outln_info(F("Feinstaub-App"));
@@ -4408,23 +4420,28 @@ void loop(void) {
 
 		if (cfg::ppd_read) {
 			data += result_PPD;
+      		sum_send_time += send2cfa(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 		}
 		if (cfg::sds_read) {
 			data += result_SDS;
+      		sum_send_time += send2cfa(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
 			sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
 		}
 		if (cfg::pms_read) {
 			data += result_PMS;
+      		sum_send_time += send2cfa(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
+      		sum_send_time += send2cfa(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
 			sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
 		}
 		if (cfg::sps30_read && (! sps30_init_failed)) {
 			fetchSensorSPS30(result);
 			data += result;
+      		sum_send_time += send2cfa(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
 			sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
 			result = emptyString;
 		}
@@ -4432,6 +4449,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorDHT(result);
 			data += result;
+      		sum_send_time += send2cfa(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			result = emptyString;
 		}
@@ -4439,6 +4457,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorHTU21D(result);
 			data += result;
+      		sum_send_time += send2cfa(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
 			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
 			result = emptyString;
 		}
@@ -4446,6 +4465,7 @@ void loop(void) {
 			// getting temperature and pressure (optional)
 			fetchSensorBMP(result);
 			data += result;
+      		sum_send_time += send2cfa(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
 			sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
 			result = emptyString;
 		}
@@ -4454,8 +4474,10 @@ void loop(void) {
 			fetchSensorBMX280(result);
 			data += result;
 			if (bmx280.sensorID() == BME280_SENSOR_ID) {
+        		sum_send_time += send2cfa(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
 				sum_send_time += sendSensorCommunity(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
 			} else {
+        		sum_send_time += send2cfa(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
 				sum_send_time += sendSensorCommunity(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
 			}
 			result = emptyString;
@@ -4464,6 +4486,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorSHT3x(result);
 			data += result;
+      		sum_send_time += send2cfa(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
 			sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
 			result = emptyString;
 		}
@@ -4471,6 +4494,7 @@ void loop(void) {
 			// getting temperature (optional)
 			fetchSensorDS18B20(result);
 			data += result;
+      		sum_send_time += send2cfa(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
 			sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
 			result = emptyString;
 		}
@@ -4478,11 +4502,13 @@ void loop(void) {
 			// getting noise measurement values from dnms (optional)
 			fetchSensorDNMS(result);
 			data += result;
+      		sum_send_time += send2cfa(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
 			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
 			result = emptyString;
 		}
 		if (cfg::gps_read) {
 			data += result_GPS;
+      		sum_send_time += send2cfa(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			result = emptyString;
 		}
