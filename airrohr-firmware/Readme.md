@@ -2,7 +2,6 @@
 
 ## Features:
 * many environmental and air quality sensors can be used concurrently
-* Integration in Sensor.Community (formerly Luftdaten.Info)
 * Configuration via HTTP in local WiFi or with a Sensor-as Access-Point
 * Support for OLED- and LCD-Displays (SSD1306, SH1106 and LCD1602, LCD2004)
 * Wide selection of API integrations for measurement reporting
