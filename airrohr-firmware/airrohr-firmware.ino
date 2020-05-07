@@ -102,6 +102,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include "./DHT.h"
+#include "./PCF8574.h"
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
 #include <Adafruit_SHT31.h>
