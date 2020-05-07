@@ -128,6 +128,10 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_RX D5
 #define GPS_SERIAL_TX D6
 
+// define DHT pins, while reading via the PCF8574
+#define DHT_PIN 2 // pin of the PCF8574 DHT is connected to
+#define PCF8574_ADDRESS 0x02
+
 // PPD42NS, the cheaper version of the particle sensor
 #define PPD_PIN_PM1 GPS_SERIAL_TX
 #define PPD_PIN_PM2 GPS_SERIAL_RX
