@@ -37,13 +37,14 @@ written by Adafruit Industries
 
 class DHT {
   public:
-   DHT(uint8_t pin, uint8_t type);
+   DHT(uint8_t pin, uint8_t type, uint8_t address);
    void begin(void);
    float readTemperature(bool force=false);
    float readHumidity(bool force=false);
    bool read(bool force=false);
 
  private:
+  uint8_t pcf8574_address = 0x20;
   uint8_t data[5];
   uint8_t _pin, _type;
   #ifdef __AVR

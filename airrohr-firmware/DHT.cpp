@@ -8,9 +8,16 @@ written by Adafruit Industries
 
 #define MIN_INTERVAL 2000
 
-DHT::DHT(uint8_t pin, uint8_t type) {
+PCF8574 pcf8574; //class object
+
+DHT::DHT(uint8_t pin, uint8_t type, uint8_t address) {
   _pin = pin;
   _type = type;
+  pcf8574_address = address;
+
+  pcf8574.setAddress(address);
+  pcf8574.begin();
+
   #ifdef __AVR
     _bit = digitalPinToBitMask(pin);
     _port = digitalPinToPort(pin);
@@ -23,7 +30,7 @@ DHT::DHT(uint8_t pin, uint8_t type) {
 
 void DHT::begin(void) {
   // set up the pins!
-  pinMode(_pin, INPUT_PULLUP);
+  pcf8574.pinMode(_pin, INPUT_PULLUP);
   // Using this value makes sure that millis() - lastreadtime will be
   // >= MIN_INTERVAL right away. Note that this assignment wraps around,
   // but so will the subtraction.
@@ -90,12 +97,13 @@ bool DHT::read(bool force) {
 
   // Go into high impedence state to let pull-up raise data line level and
   // start the reading process.
-  digitalWrite(_pin, HIGH);
+  pcf8574.pinmode(_pin, INPUT);
+  pcf8574.digitalWrite(_pin, HIGH);
   delay(250);
 
   // First set data line low for 20 milliseconds.
-  pinMode(_pin, OUTPUT);
-  digitalWrite(_pin, LOW);
+  pcf8574.pinMode(_pin, OUTPUT);
+  pcf8574.digitalWrite(_pin, LOW);
   delay(20);
 
   uint32_t cycles[80];
@@ -109,7 +117,8 @@ bool DHT::read(bool force) {
     // delayMicroseconds(40);
 
     // Now start reading the data line to get the value from the DHT sensor.
-    pinMode(_pin, INPUT_PULLUP);
+    pcf8574.pinMode(_pin, INPUT);
+    pcf8574.digitalWrite(_pin, HIGH);
     delayMicroseconds(50);  // Delay a bit to let sensor pull data line low.
 
     // First expect a low signal for ~80 microseconds followed by a high signal
@@ -201,7 +210,7 @@ uint32_t DHT::expectPulse(bool level) {
   // Otherwise fall back to using digitalRead (this seems to be necessary on ESP8266
   // right now, perhaps bugs in direct port access functions?).
   #else
-    while (digitalRead(_pin) == level) {
+    while (pcf8574.digitalRead(_pin) == level) {
       if (count++ >= _maxcycles) {
         return 0; // Exceeded timeout, fail.
       }
