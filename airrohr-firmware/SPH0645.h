@@ -162,6 +162,42 @@ void slc_init()
   SLCTXL |= SLCTXLS;
 }
 
+/**
+ * Triggered when SLC has finished writing
+ * to one of the buffers.
+ */
+void ICACHE_RAM_ATTR
+slc_isr(void *para)
+{
+  uint32_t status;
+
+  status = SLCIS;
+  SLCIC = 0xFFFFFFFF;
+
+  if (status == 0) {
+    return;
+  }
+
+  if (status & SLCITXEOF) {
+    // We have received a frame
+    ETS_SLC_INTR_DISABLE();
+    sdio_queue_t *finished = (sdio_queue_t*)SLCTXEDA;
+
+    finished->eof = 0;
+    finished->owner = 1;
+    finished->datalen = 0;
+
+    for (int i = 0; i < SLC_BUF_CNT; i++) {
+      if (finished == &i2s_slc_items[i]) {
+        rx_buf_idx = i;
+      }
+    }
+    rx_buf_cnt++;
+    rx_buf_flag = true;
+    ETS_SLC_INTR_ENABLE();
+  }
+}
+
 
 
 #endif //_SPH0645_H
