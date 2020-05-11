@@ -475,6 +475,7 @@ float value_SPS30_N25 = 0.0;
 float value_SPS30_N4 = 0.0;
 float value_SPS30_N10 = 0.0;
 float value_SPS30_TS = 0.0;
+float value_SPH0645 = 0.0;
 
 
 uint16_t SPS30_measurement_count = 0;
@@ -3409,18 +3410,23 @@ void init_SPH0645(){
  * OBTAIN SPH0645 MIC VALUE
  * **************************************************************/
 
-int32_t get_SPH0645(){
-	int32_t value = 0;
+void fetchSensorSPH0645(String& s){
+	
 
 	if (rx_buf_flag) {
     for (int x = 0; x < SLC_BUF_LEN; x++) {
       if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
-	 	value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+	 	value_SPH0645 = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+		debug_outln_info(F("Mic value:  "), value_SPH0645);
+		debug_outln_info(F("Mic Value "), value_SPH0645);
+	 }
+	 else{
+		 debug_outln_error(F("No Mic Value available"));
 	 }
     }
     rx_buf_flag = false;
   }
-	return value;
+	
 }
 
 /*****************************************************************
@@ -4251,6 +4257,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 
 void setup(void) {
 	Serial.begin(9600);					// Output to Serial at 9600 baud
+	init_SPH0645(); //initialize SPH0645 Mic
 #if defined(ESP8266)
 	serialSDS.begin(9600, SWSERIAL_8N1, PM_SERIAL_RX, PM_SERIAL_TX);
 #endif
@@ -4408,6 +4415,10 @@ void loop(void) {
 
 	if (cfg::ppd_read) {
 		fetchSensorPPD(result_PPD);
+	}
+
+	if(cfg::sph0645_read){
+
 	}
 
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
