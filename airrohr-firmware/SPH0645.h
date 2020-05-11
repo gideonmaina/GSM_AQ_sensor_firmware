@@ -116,5 +116,52 @@ i2s_set_rate(uint32_t rate)
   I2SC |= I2SRF | I2SMR | I2SRMS | (i2s_bck_div << I2SBD) | (i2s_clock_div << I2SCD);
 }
 
+/**
+ * Initialize the SLC module for DMA operation.
+ * Counter intuitively, we use the TXLINK here to
+ * receive data.
+ */
+void slc_init()
+{
+  for (int x = 0; x < SLC_BUF_CNT; x++) {
+    i2s_slc_buf_pntr[x] = (uint32_t *)malloc(SLC_BUF_LEN * 4);
+    for (int y = 0; y < SLC_BUF_LEN; y++) i2s_slc_buf_pntr[x][y] = 0;
+
+    i2s_slc_items[x].unused = 0;
+    i2s_slc_items[x].owner = 1;
+    i2s_slc_items[x].eof = 0;
+    i2s_slc_items[x].sub_sof = 0;
+    i2s_slc_items[x].datalen = SLC_BUF_LEN * 4;
+    i2s_slc_items[x].blocksize = SLC_BUF_LEN * 4;
+    i2s_slc_items[x].buf_ptr = (uint32_t *)&i2s_slc_buf_pntr[x][0];
+    i2s_slc_items[x].next_link_ptr = (uint32_t *)((x < (SLC_BUF_CNT - 1)) ? (&i2s_slc_items[x + 1]) : (&i2s_slc_items[0]));
+  }
+
+  // Reset DMA
+  ETS_SLC_INTR_DISABLE();
+  SLCC0 |= SLCRXLR | SLCTXLR;
+  SLCC0 &= ~(SLCRXLR | SLCTXLR);
+  SLCIC = 0xFFFFFFFF;
+
+  // Configure DMA
+  SLCC0 &= ~(SLCMM << SLCM);      // Clear DMA MODE
+  SLCC0 |= (1 << SLCM);           // Set DMA MODE to 1
+  SLCRXDC |= SLCBINR | SLCBTNR;   // Enable INFOR_NO_REPLACE and TOKEN_NO_REPLACE
+
+  // Feed DMA the 1st buffer desc addr
+  SLCTXL &= ~(SLCTXLAM << SLCTXLA);
+  SLCTXL |= (uint32_t)&i2s_slc_items[0] << SLCTXLA;
+
+  ETS_SLC_INTR_ATTACH(slc_isr, NULL);
+
+  // Enable EOF interrupt
+  SLCIE = SLCITXEOF;
+  ETS_SLC_INTR_ENABLE();
+
+  // Start transmission
+  SLCTXL |= SLCTXLS;
+}
+
+
 
 #endif //_SPH0645_H
