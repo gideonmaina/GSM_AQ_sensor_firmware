@@ -32,4 +32,22 @@ void rom_i2c_writeReg_Mask(int, int, int, int, int, int);
  */
 #define convert(sample) (((int32_t)(sample) >> 13) - 240200)
 
+typedef struct {
+  uint32_t blocksize      : 12;
+  uint32_t datalen        : 12;
+  uint32_t unused         : 5;
+  uint32_t sub_sof        : 1;
+  uint32_t eof            : 1;
+  volatile uint32_t owner : 1;
+
+  uint32_t *buf_ptr;
+  uint32_t *next_link_ptr;
+} sdio_queue_t;
+
+static sdio_queue_t i2s_slc_items[SLC_BUF_CNT];  // I2S DMA buffer descriptors
+static uint32_t *i2s_slc_buf_pntr[SLC_BUF_CNT];  // Pointer to the I2S DMA buffer data
+static volatile uint32_t rx_buf_cnt = 0;
+static volatile uint32_t rx_buf_idx = 0;
+static volatile bool rx_buf_flag = false;
+
 #endif //_SPH0645_H
