@@ -199,6 +199,8 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
+//SPH0645 MEMS Microphone
+#define SPHO645_READ  0
 
 // DHT22, temperature, humidity
 #define DHT_READ 1
