@@ -95,4 +95,26 @@ void i2s_init()
   I2SC |= I2SRXS;
 }
 
+/**
+ * Set I2S clock.
+ * I2S bits mode only has space for 15 extra bits,
+ * 31 in total. The
+ */
+void
+i2s_set_rate(uint32_t rate)
+{
+  uint32_t i2s_clock_div = (I2S_CLK_FREQ / (rate * 31 * 2)) & I2SCDM;
+  uint32_t i2s_bck_div = (I2S_CLK_FREQ / (rate * i2s_clock_div * 31 * 2)) & I2SBDM;
+
+#ifdef DEBUG
+  Serial.printf("Rate %u Div %u Bck %u Freq %u\n",
+  rate, i2s_clock_div, i2s_bck_div, I2S_CLK_FREQ / (i2s_clock_div * i2s_bck_div * 31 * 2));
+#endif
+
+  // RX master mode, RX MSB shift, right first, msb right
+  I2SC &= ~(I2STSM | I2SRSM | (I2SBMM << I2SBM) | (I2SBDM << I2SBD) | (I2SCDM << I2SCD));
+  I2SC |= I2SRF | I2SMR | I2SRMS | (i2s_bck_div << I2SBD) | (i2s_clock_div << I2SCD);
+}
+
+
 #endif //_SPH0645_H
