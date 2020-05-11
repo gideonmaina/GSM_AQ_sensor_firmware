@@ -3396,10 +3396,9 @@ static void fetchSensorGPS(String& s) {
  * **************************************************************/
 void init_SPH0645(){
 	rx_buf_cnt = 0;
-
-  pinMode(I2SI_WS, OUTPUT);
-  pinMode(I2SI_BCK, OUTPUT);
-  pinMode(I2SI_DATA, INPUT);
+	pinMode(I2SI_WS, OUTPUT);
+	pinMode(I2SI_BCK, OUTPUT);
+	pinMode(I2SI_DATA, INPUT);
 
 	slc_init();
 	i2s_init();
