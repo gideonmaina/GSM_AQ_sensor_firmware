@@ -4339,7 +4339,7 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS;
+	String result_GPS, result_DNMS,result_SPH0645;
 
 	unsigned sum_send_time = 0;
 
@@ -4418,7 +4418,7 @@ void loop(void) {
 	}
 
 	if(cfg::sph0645_read){
-
+		fetchSensorSPH0645(result_SPH0645);
 	}
 
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
