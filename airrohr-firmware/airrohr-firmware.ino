@@ -209,6 +209,7 @@ namespace cfg {
 	char fs_pwd[LEN_CFG_PASSWORD] = FS_PWD;
 
 	// (in)active sensors
+	bool sph0645_read = SPHO645_READ;
 	bool dht_read = DHT_READ;
 	bool htu21d_read = HTU21D_READ;
 	bool ppd_read = PPD_READ;
