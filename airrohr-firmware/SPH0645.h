@@ -50,4 +50,9 @@ static volatile uint32_t rx_buf_cnt = 0;
 static volatile uint32_t rx_buf_idx = 0;
 static volatile bool rx_buf_flag = false;
 
+void i2s_init();
+void slc_init();
+void i2s_set_rate(uint32_t rate);
+void slc_isr(void *para);
+
 #endif //_SPH0645_H
