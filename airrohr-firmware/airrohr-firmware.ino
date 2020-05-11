@@ -3404,6 +3404,25 @@ void init_SPH0645(){
 	i2s_init();
 }
 
+
+/****************************************************************
+ * OBTAIN SPH0645 MIC VALUE
+ * **************************************************************/
+
+int32_t get_SPH0645(){
+	int32_t value = 0;
+
+	if (rx_buf_flag) {
+    for (int x = 0; x < SLC_BUF_LEN; x++) {
+      if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
+	 	value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+	 }
+    }
+    rx_buf_flag = false;
+  }
+	return value;
+}
+
 /*****************************************************************
  * OTAUpdate                                                     *
  *****************************************************************/
