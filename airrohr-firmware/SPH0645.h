@@ -55,4 +55,44 @@ void slc_init();
 void i2s_set_rate(uint32_t rate);
 void slc_isr(void *para);
 
+
+/**
+ * Initialise I2S as a RX master.
+ */
+void i2s_init()
+{
+  // Config RX pin function
+  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_I2SI_DATA);
+  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_I2SI_BCK);
+  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_I2SI_WS);
+
+  // Enable a 160MHz clock
+  I2S_CLK_ENABLE();
+
+  // Reset I2S
+  I2SC &= ~(I2SRST);
+  I2SC |= I2SRST;
+  I2SC &= ~(I2SRST);
+
+  // Reset DMA
+  I2SFC &= ~(I2SDE | (I2SRXFMM << I2SRXFM));
+
+  // Enable DMA
+  I2SFC |= I2SDE | (I2S_24BIT << I2SRXFM);
+
+  // Set RX single channel (left)
+  I2SCC &= ~((I2STXCMM << I2STXCM) | (I2SRXCMM << I2SRXCM));
+  I2SCC |= (I2S_LEFT << I2SRXCM);
+  i2s_set_rate(16667);
+
+  // Set RX data to be received
+  I2SRXEN = SLC_BUF_LEN;
+
+  // Bits mode
+  I2SC |= (15 << I2SBM);
+
+  // Start receiver
+  I2SC |= I2SRXS;
+}
+
 #endif //_SPH0645_H
