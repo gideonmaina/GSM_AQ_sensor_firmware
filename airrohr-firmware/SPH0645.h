@@ -1,3 +1,24 @@
+/******************************************************************************
+ * @file    listener.ino
+ * @author  Joe Todd
+ * @version
+ * @date    November 2017
+ * @brief   I2S interface for ESP8266 and SPH0645 MEMS microphone.
+ * 
+ * ESP8266 / SPH0645
+ * =================
+ *I2S Interface for ESP8266 and SPH0645 MEMS microphone.
+ * 
+ * Source Link : https://github.com/joextodd/listener
+ * 
+ * Credits
+ * ---------------
+ * -https://github.com/plerup/makeEspArduino
+ * - https://github.com/cnlohr
+
+  ******************************************************************************/
+
+
 #ifndef _SPH0645_H
 #define _SPH0645_H
 
