@@ -475,6 +475,8 @@ float value_SPS30_N25 = 0.0;
 float value_SPS30_N4 = 0.0;
 float value_SPS30_N10 = 0.0;
 float value_SPS30_TS = 0.0;
+
+//Variable to store SPH0645 Mic value
 float value_SPH0645 = 0.0;
 
 
