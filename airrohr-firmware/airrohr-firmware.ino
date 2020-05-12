@@ -3419,8 +3419,8 @@ void fetchSensorSPH0645(String& s){
     for (int x = 0; x < SLC_BUF_LEN; x++) {
       if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
 	 	value_SPH0645 = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
-		debug_outln_info(F("Mic value:  "), value_SPH0645);
-		debug_outln_info(F("Mic Value "), value_SPH0645);
+		
+		
 	 }
 	 else{
 		 debug_outln_error(F("No Mic Value available"));
@@ -3428,6 +3428,13 @@ void fetchSensorSPH0645(String& s){
     }
     rx_buf_flag = false;
   }
+
+  if(send_now){
+	  debug_outln_info(F("MIC_AMPLITUDE "), value_SPH0645);
+	  add_Value2Json(s, F("MIC_AMPLITUDE"), value_SPH0645);
+  }
+
+
 	
 }
 
