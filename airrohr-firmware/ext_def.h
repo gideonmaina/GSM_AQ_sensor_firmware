@@ -99,7 +99,7 @@ static const char URL_CUSTOM[] PROGMEM = "/data.php";
 #define SSL_CUSTOM 0
 
 // define own InfluxDB
-static const char HOST_INFLUX[] PROGMEM = "http://ec2-34-250-53-214.eu-west-1.compute.amazonaws.com";
+static const char HOST_INFLUX[] PROGMEM = "ec2-34-250-53-214.eu-west-1.compute.amazonaws.com";
 static const char URL_INFLUX[] PROGMEM = "/write?db=airquality";
 #define PORT_INFLUX 8086
 #define USER_INFLUX ""
