@@ -120,6 +120,7 @@ public:
     PCF8574(TwoWire *pWire, uint8_t address, uint8_t sda, uint8_t scl, uint8_t interruptPin, void (*interruptFunction)());
 #endif
 
+    void setAddress(uint8_t address);
     void begin();
     void pinMode(uint8_t pin, uint8_t mode, uint8_t output_start = HIGH);
 

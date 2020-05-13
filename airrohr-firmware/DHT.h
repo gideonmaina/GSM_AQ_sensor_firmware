@@ -3,6 +3,8 @@
 MIT license
 written by Adafruit Industries
 */
+#include "PCF8574.h"
+
 #ifndef DHT_H
 #define DHT_H
 

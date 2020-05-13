@@ -5,17 +5,18 @@ written by Adafruit Industries
 */
 
 #include "DHT.h"
+#include "PCF8574.h"
 
 #define MIN_INTERVAL 2000
 
-PCF8574 pcf8574; //class object
+PCF8574 pcf8574(0X02); //class object
 
 DHT::DHT(uint8_t pin, uint8_t type, uint8_t address) {
   _pin = pin;
   _type = type;
   pcf8574_address = address;
 
-  pcf8574.setAddress(address);
+  //pcf8574.setAddress(address);
   pcf8574.begin();
 
   #ifdef __AVR
@@ -97,7 +98,7 @@ bool DHT::read(bool force) {
 
   // Go into high impedence state to let pull-up raise data line level and
   // start the reading process.
-  pcf8574.pinmode(_pin, INPUT);
+  pcf8574.pinMode(_pin, INPUT);
   pcf8574.digitalWrite(_pin, HIGH);
   delay(250);
 
