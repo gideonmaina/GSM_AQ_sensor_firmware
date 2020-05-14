@@ -3430,8 +3430,8 @@ void fetchSensorSPH0645(String& s){
   }
 
   if(send_now){
-	  debug_outln_info(F("MIC_AMPLITUDE "), value_SPH0645);
-	  add_Value2Json(s, F("MIC_AMPLITUDE"), value_SPH0645);
+	  debug_outln_info(F("MIC_AMPLITUDE "), String(value_SPH0645));
+	  add_Value2Json(s, F("MIC_AMPLITUDE"), String(value_SPH0645));
   }
 
 
