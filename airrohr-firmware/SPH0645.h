@@ -43,6 +43,12 @@ void rom_i2c_writeReg_Mask(int, int, int, int, int, int);
 #define SLC_BUF_CNT       8     // Number of buffers in the I2S circular buffer
 #define SLC_BUF_LEN       64    // Length of one buffer, in 32-bit words.
 
+
+const int BIT_LENGTH = 24;
+const int FULL_SCALE_DBSPL = 120; // FULL SCALE dBSPL (AOP = 116dB SPL)
+const double FULL_SCALE_DBFS = 20*log10(pow(2,(BIT_LENGTH)));
+const int CONST_FACTOR = 8; // IF change this, change window_reduced
+
 /**
  * Convert I2S data.
  * Data is 18 bit signed, MSBit first, two's complement.
