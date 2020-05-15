@@ -81,6 +81,7 @@ void i2s_init();
 void slc_init();
 void i2s_set_rate(uint32_t rate);
 void slc_isr(void *para);
+float convert_to_dB(float value);
 
 
 /**
