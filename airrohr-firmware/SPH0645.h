@@ -226,6 +226,20 @@ slc_isr(void *para)
   }
 }
 
+/** 
+ * convert received i2s audio data to dBs.
+ * dBs meansure sound preasure difference
+ * between the average local pressure and the 
+ * pressure in the sound wave.
+*/
+float convert_to_dBs(float value){
+  float dBs;
+  dBs = FULL_SCALE_DBSPL-(FULL_SCALE_DBFS-20*log10(sqrt(2) * (value) * CONST_FACTOR));
+  
+  return dBs;
+
+}
+
 
 
 #endif //_SPH0645_H
