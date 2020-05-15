@@ -3418,7 +3418,9 @@ void fetchSensorSPH0645(String& s){
 	if (rx_buf_flag) {
     for (int x = 0; x < SLC_BUF_LEN; x++) {
       if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
-	 	value_SPH0645 = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+	 	float sensor_value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+		 value_SPH0645 = convert_to_dB(sensor_value);
+
 		
 		
 	 }
@@ -3430,8 +3432,8 @@ void fetchSensorSPH0645(String& s){
   }
 
   if(send_now){
-	  debug_outln_info(F("MIC_AMPLITUDE "), String(value_SPH0645));
-	  add_Value2Json(s, F("MIC_AMPLITUDE"), String(value_SPH0645));
+	  debug_outln_info(F("Noise: "), String(value_SPH0645));
+	  add_Value2Json(s, F("Noise"), String(value_SPH0645));
   }
 
 
