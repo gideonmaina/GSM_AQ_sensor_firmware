@@ -3414,16 +3414,12 @@ void init_SPH0645(){
 
 void fetchSensorSPH0645(String& s){
 	
-
 	if (rx_buf_flag) {
     for (int x = 0; x < SLC_BUF_LEN; x++) {
       if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
 	 	float sensor_value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
 		 value_SPH0645 = convert_to_dB(sensor_value);
-
-		
-		
-	 }
+		  }
 	 else{
 		 debug_outln_error(F("No Mic Value available"));
 	 }
@@ -3436,8 +3432,6 @@ void fetchSensorSPH0645(String& s){
 	  add_Value2Json(s, F("Noise"), String(value_SPH0645));
   }
 
-
-	
 }
 
 /*****************************************************************
