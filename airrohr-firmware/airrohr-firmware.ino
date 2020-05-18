@@ -3451,8 +3451,8 @@ void fetchSensorSPH0645(String& s){
   }
 
   if(send_now){
-	  debug_outln_info(F("Noise: "), String(value_SPH0645));
-	  add_Value2Json(s, F("Noise"), String(value_SPH0645));
+	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
+	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
   }
 
 }
