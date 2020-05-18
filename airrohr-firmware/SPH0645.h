@@ -128,8 +128,7 @@ void i2s_init()
  * I2S bits mode only has space for 15 extra bits,
  * 31 in total. The
  */
-void
-i2s_set_rate(uint32_t rate)
+void i2s_set_rate(uint32_t rate)
 {
   uint32_t i2s_clock_div = (I2S_CLK_FREQ / (rate * 31 * 2)) & I2SCDM;
   uint32_t i2s_bck_div = (I2S_CLK_FREQ / (rate * i2s_clock_div * 31 * 2)) & I2SBDM;
@@ -194,8 +193,7 @@ void slc_init()
  * Triggered when SLC has finished writing
  * to one of the buffers.
  */
-void ICACHE_RAM_ATTR
-slc_isr(void *para)
+void ICACHE_RAM_ATTR slc_isr(void *para)
 {
   uint32_t status;
 
