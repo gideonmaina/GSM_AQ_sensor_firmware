@@ -4147,7 +4147,7 @@ static void powerOnTestSensors() {
 	}
 
 	if(cfg::sph0645_read){
-		debug_outln_info(F("Read DNMS..."));
+		debug_outln_info(F("Read SPH0645..."));
 		init_SPH0645();
 	}
 
@@ -4499,8 +4499,8 @@ void loop(void) {
 
 		if(cfg::sph0645_read){
 			data += result_SPH0645;
-      		sum_send_time += sendCFA(result_PPD, 0, FPSTR(SENSORS_SPH0645), "SPH0645_");
-			sum_send_time += sendSensorCommunity(result_PPD, 0, FPSTR(SENSORS_SPH0645), "SHP0645_");
+      		sum_send_time += sendCFA(result_SPH0645, 0, FPSTR(SENSORS_SPH0645), "SPH0645_");
+			sum_send_time += sendSensorCommunity(result_SPH0645, 0, FPSTR(SENSORS_SPH0645), "SHP0645_");
 		}
 
 		if (cfg::ppd_read) {
