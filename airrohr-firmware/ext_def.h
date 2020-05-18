@@ -135,6 +135,12 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 // PPD42NS, the cheaper version of the particle sensor
 #define PPD_PIN_PM1 GPS_SERIAL_TX
 #define PPD_PIN_PM2 GPS_SERIAL_RX
+
+//define I2S pins for the SPH0645 MIC
+#define I2SI_DATA         12    // I2S data on GPIO12
+#define I2SI_BCK          13    // I2S clk on GPIO13
+#define I2SI_WS           14    // I2S select on GPIO14
+
 #endif
 
 
