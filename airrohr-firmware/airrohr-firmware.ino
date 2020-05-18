@@ -4492,6 +4492,12 @@ void loop(void) {
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
 
+		if(cfg::sph0645_read){
+			data += result_SPH0645;
+      		sum_send_time += sendCFA(result_PPD, 0, FPSTR(SENSORS_SPH0645), "SPH0645_");
+			sum_send_time += sendSensorCommunity(result_PPD, 0, FPSTR(SENSORS_SPH0645), "SHP0645_");
+		}
+
 		if (cfg::ppd_read) {
 			data += result_PPD;
       		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
