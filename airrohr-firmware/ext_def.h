@@ -200,7 +200,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #endif
 
 //SPH0645 MEMS Microphone
-#define SPHO645_READ  0
+#define SPHO645_READ  1
 
 // DHT22, temperature, humidity
 #define DHT_READ 1
