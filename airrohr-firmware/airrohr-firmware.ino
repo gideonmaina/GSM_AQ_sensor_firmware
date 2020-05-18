@@ -4146,6 +4146,11 @@ static void powerOnTestSensors() {
 		initDNMS();
 	}
 
+	if(cfg::sph0645_read){
+		debug_outln_info(F("Read DNMS..."));
+		init_SPH0645();
+	}
+
 }
 
 static void logEnabledAPIs() {
@@ -4285,7 +4290,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 
 void setup(void) {
 	Serial.begin(9600);					// Output to Serial at 9600 baud
-	init_SPH0645(); //initialize SPH0645 Mic
+	
 #if defined(ESP8266)
 	serialSDS.begin(9600, SWSERIAL_8N1, PM_SERIAL_RX, PM_SERIAL_TX);
 #endif
