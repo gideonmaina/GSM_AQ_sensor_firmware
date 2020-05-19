@@ -56,7 +56,7 @@ struct LoggerConfig {
 };
 
 // IMPORTANT: NO MORE CHANGES TO VARIABLE NAMES NEEDED FOR EXTERNAL APIS
-static const char HOST_CFA[] PROGMEM = "api.airquality.codeforafrica.org";
+static const char HOST_CFA[] PROGMEM = "api.sensors.africa";
 static const char URL_CFA[] PROGMEM = " /v1/push-sensor-data/";
 #define PORT_CFA 80
 
@@ -135,6 +135,12 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 // PPD42NS, the cheaper version of the particle sensor
 #define PPD_PIN_PM1 GPS_SERIAL_TX
 #define PPD_PIN_PM2 GPS_SERIAL_RX
+
+//define I2S pins for the SPH0645 MIC
+#define I2SI_DATA         12    // I2S data on GPIO12
+#define I2SI_BCK          13    // I2S clk on GPIO13
+#define I2SI_WS           14    // I2S select on GPIO14
+
 #endif
 
 
@@ -199,6 +205,9 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
+//SPH0645 MEMS Microphone
+#define SPHO645_READ  1
+#define SPH0645_API_PIN 15
 
 // DHT22, temperature, humidity
 #define DHT_READ 1
