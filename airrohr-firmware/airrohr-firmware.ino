@@ -460,7 +460,6 @@ int hpm_pm10_max = 0;
 int hpm_pm10_min = 20000;
 int hpm_pm25_max = 0;
 int hpm_pm25_min = 20000;
-int RTC_value;
 
 float last_value_SPS30_P0 = -1.0;
 float last_value_SPS30_P1 = -1.0;
@@ -3433,36 +3432,10 @@ void init_RTC()
 	if (!rtc.isrunning())
 	{
 		// sets time to the date this sketch was compiled
-		// rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		// Set explicit time for example 19th March 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
 	}
-}
-
-/*****************************************************************
- * read RTC sensor values                                        *
-*****************************************************************/
-static void fetchSensorRTC(String &s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), "RTC");
-
-	DateTime now = rtc.now();
-
-	if(send_now) {
-		debug_outln_info("The RTC time is: ");
-		Serial.print(now.year(), DEC);
-		Serial.print('/');
-		Serial.print(now.month(), DEC);
-		Serial.print('/');
-		Serial.print(now.day(), DEC);
-		Serial.print(' ');
-		Serial.print(now.hour(), DEC);
-		Serial.print(':');
-		Serial.print(now.minute(), DEC);
-		Serial.print(':');
-		Serial.print(now.second(), DEC);
-		Serial.println();
-	}
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), "RTC");
 }
 
 /*****************************************************************
@@ -4356,8 +4329,6 @@ void setup(void) {
 		disable_unneeded_nmea();
 	}
 
-	DateTime now = rtc.now();
-
 	powerOnTestSensors();
 	logEnabledAPIs();
 	logEnabledDisplays();
@@ -4382,7 +4353,7 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS, result_RTC;
+	String result_GPS, result_DNMS;
 
 	unsigned sum_send_time = 0;
 
@@ -4475,7 +4446,7 @@ void loop(void) {
 		Serial.print(':');
 		Serial.print(now.second(), DEC);
 		Serial.println();
-		fetchSensorRTC(result_RTC);
+		delay(5000);
 	}
 
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
@@ -4525,11 +4496,6 @@ void loop(void) {
 			data += result_PPD;
       		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-		}
-		if (cfg::rtc_read) {
-			data += result_RTC;
-			sum_send_time += sendCFA(result_RTC, RTC_API_PIN, FPSTR(SENSORS_RTC), "RTC_");
-			sum_send_time += sendSensorCommunity(result_RTC, RTC_API_PIN, FPSTR(SENSORS_RTC), "RTC_");
 		}
 
 		if (cfg::sds_read) {
