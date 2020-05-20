@@ -2646,48 +2646,6 @@ static void send_csv(const String& data) {
 }
 
 /*****************************************************************
- * send as csv to micro SD                                        *
- *****************************************************************
-static void send_csv(const String &data)
-{
-	DynamicJsonDocument json2data(JSON_BUFFER_SIZE);
-	DeserializationError err = deserializeJson(json2data, data);
-	debug_outln_info(F("SD Output: "), data);
-	if (!err)
-	{
-		String headline = F("Timestamp_ms;");
-		String valueline(act_milli);
-		valueline += ';';
-		for (JsonObject measurement : json2data[FPSTR(JSON_SENSOR_DATA_VALUES)].as<JsonArray>())
-		{
-			headline += measurement["value_type"].as<char *>();
-			headline += ';';
-			valueline += measurement["value"].as<char *>();
-			valueline += ';';
-		}
-		static bool first_csv_line = true;
-		if (first_csv_line)
-		{
-			if (headline.length() > 0)
-			{
-				headline.remove(headline.length() - 1);
-			}
-			Serial.println(headline);
-			first_csv_line = false;
-		}
-		if (valueline.length() > 0)
-		{
-			valueline.remove(valueline.length() - 1);
-		}
-		Serial.println(valueline);
-	}
-	else
-	{
-		debug_outln_error(FPSTR(DBG_TXT_DATA_READ_FAILED));
-	}
-}
-*/
-/*****************************************************************
  * read DHT22 sensor values                                      *
  *****************************************************************/
 static void fetchSensorDHT(String& s) {
