@@ -4590,6 +4590,7 @@ void loop(void) {
 			data += result_SPH0645;
       		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
+			sum_send_time += sensor_readings.println(result_SPH0645); // Log SPH0645 readings to microSD card
 		}
 
 		if (cfg::ppd_read) {
@@ -4607,6 +4608,7 @@ void loop(void) {
 			data += result_PMS;
       		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			sum_send_time += sensor_readings.println(result_PMS); // Log PMSX003 sensor data to microSD card
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
@@ -4626,6 +4628,7 @@ void loop(void) {
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			sum_send_time += sensor_readings.println(result); // Log DHT sensor data to microSD card
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
@@ -4685,6 +4688,7 @@ void loop(void) {
 			data += result_GPS;
       		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			sum_send_time += sensor_readings.println(result_GPS); // Log GPS sensor data to microSD card
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
