@@ -113,6 +113,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include "./bmx280_i2c.h"
 #include "./sps30_i2c.h"
 #include "./dnms_i2c.h"
+#include "./SPH0645.h"
 
 #if defined(INTL_BG)
 #include "intl_bg.h"
@@ -209,6 +210,7 @@ namespace cfg {
 	char fs_pwd[LEN_CFG_PASSWORD] = FS_PWD;
 
 	// (in)active sensors
+	bool sph0645_read = SPHO645_READ;
 	bool dht_read = DHT_READ;
 	bool htu21d_read = HTU21D_READ;
 	bool ppd_read = PPD_READ;
@@ -481,6 +483,9 @@ float value_SPS30_N25 = 0.0;
 float value_SPS30_N4 = 0.0;
 float value_SPS30_N10 = 0.0;
 float value_SPS30_TS = 0.0;
+
+//Variable to store SPH0645 Mic value
+float value_SPH0645 = 0.0;
 
 
 uint16_t SPS30_measurement_count = 0;
@@ -3422,6 +3427,46 @@ static void fetchSensorGPS(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), "GPS");
 }
 
+/****************************************************************
+ * INITIALIZE SPH0645 MICROPHONE
+ * **************************************************************/
+void init_SPH0645(){
+	rx_buf_cnt = 0;
+	pinMode(I2SI_WS, OUTPUT);
+	pinMode(I2SI_BCK, OUTPUT);
+	pinMode(I2SI_DATA, INPUT);
+
+	slc_init();
+	i2s_init();
+}
+
+
+/****************************************************************
+ * OBTAIN SPH0645 MIC VALUE
+ * **************************************************************/
+
+void fetchSensorSPH0645(String& s){
+	
+	if (rx_buf_flag) {
+    for (int x = 0; x < SLC_BUF_LEN; x++) {
+      if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
+	 	float sensor_value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
+		 value_SPH0645 = convert_to_dB(sensor_value);
+		  }
+	 else{
+		 debug_outln_error(F("No Mic Value available"));
+	 }
+    }
+    rx_buf_flag = false;
+  }
+
+  if(send_now){
+	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
+	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+  }
+
+}
+
 /*****************************************************************
  * Initialize RTC                                        		 *
  *****************************************************************/
@@ -4133,6 +4178,11 @@ static void powerOnTestSensors() {
 		initDNMS();
 	}
 
+	if(cfg::sph0645_read){
+		debug_outln_info(F("Read SPH0645..."));
+		init_SPH0645();
+	}
+
 }
 
 static void logEnabledAPIs() {
@@ -4272,6 +4322,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 
 void setup(void) {
 	Serial.begin(9600);					// Output to Serial at 9600 baud
+	
 #if defined(ESP8266)
 	serialSDS.begin(9600, SWSERIAL_8N1, PM_SERIAL_RX, PM_SERIAL_TX);
 #endif
@@ -4353,7 +4404,7 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS;
+	String result_GPS, result_DNMS, result_SPH0645;
 
 	unsigned sum_send_time = 0;
 
@@ -4431,6 +4482,7 @@ void loop(void) {
 		fetchSensorPPD(result_PPD);
 	}
 
+
 	if (cfg::rtc_read) {
 		DateTime now = rtc.now();
 		debug_outln_info("The RTC time is: ");
@@ -4447,6 +4499,10 @@ void loop(void) {
 		Serial.print(now.second(), DEC);
 		Serial.println();
 		delay(5000);
+  }
+  
+	if(cfg::sph0645_read){
+		fetchSensorSPH0645(result_SPH0645);
 	}
 
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
@@ -4491,6 +4547,12 @@ void loop(void) {
 		RESERVE_STRING(data, LARGE_STR);
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
+
+		if(cfg::sph0645_read){
+			data += result_SPH0645;
+      		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
+		}
 
 		if (cfg::ppd_read) {
 			data += result_PPD;
