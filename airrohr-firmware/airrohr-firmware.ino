@@ -104,6 +104,8 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include "./DHT.h"
 #include "./PCF8574.h"
 #include <RTClib.h>
+#include <SD.h>
+#include <SPI.h>
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
 #include <Adafruit_SHT31.h>
@@ -226,6 +228,7 @@ namespace cfg {
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
 	bool rtc_read = RTC_READ;
+	bool sd_read = SD_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -237,6 +240,7 @@ namespace cfg {
 	bool send2custom = SEND2CUSTOM;
 	bool send2influx = SEND2INFLUX;
 	bool send2csv = SEND2CSV;
+	bool send2sd = SEND2SD;
 
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
@@ -389,6 +393,12 @@ TinyGPSPlus gps;
  * RTC declaration                                               *
  *****************************************************************/
 RTC_DS1307 rtc;
+
+/*****************************************************************
+ * MicroSD declaration                                           *
+ *****************************************************************/
+SoftwareSerial serialSD;
+File sensor_readings;
 
 /*****************************************************************
  * Variable Definitions for PPD24NS                              *
@@ -2636,6 +2646,48 @@ static void send_csv(const String& data) {
 }
 
 /*****************************************************************
+ * send as csv to micro SD                                        *
+ *****************************************************************
+static void send_csv(const String &data)
+{
+	DynamicJsonDocument json2data(JSON_BUFFER_SIZE);
+	DeserializationError err = deserializeJson(json2data, data);
+	debug_outln_info(F("SD Output: "), data);
+	if (!err)
+	{
+		String headline = F("Timestamp_ms;");
+		String valueline(act_milli);
+		valueline += ';';
+		for (JsonObject measurement : json2data[FPSTR(JSON_SENSOR_DATA_VALUES)].as<JsonArray>())
+		{
+			headline += measurement["value_type"].as<char *>();
+			headline += ';';
+			valueline += measurement["value"].as<char *>();
+			valueline += ';';
+		}
+		static bool first_csv_line = true;
+		if (first_csv_line)
+		{
+			if (headline.length() > 0)
+			{
+				headline.remove(headline.length() - 1);
+			}
+			Serial.println(headline);
+			first_csv_line = false;
+		}
+		if (valueline.length() > 0)
+		{
+			valueline.remove(valueline.length() - 1);
+		}
+		Serial.println(valueline);
+	}
+	else
+	{
+		debug_outln_error(FPSTR(DBG_TXT_DATA_READ_FAILED));
+	}
+}
+*/
+/*****************************************************************
  * read DHT22 sensor values                                      *
  *****************************************************************/
 static void fetchSensorDHT(String& s) {
@@ -4065,6 +4117,21 @@ static void initSPS30() {
 }
 
 /*****************************************************************
+ Init Micro SD card logger
+ *****************************************************************/
+static void init_SD()
+{	
+	serialSD.begin(115200);
+	debug_outln_info("Micro SD Logger initializing...");
+	
+	if (!SD.begin(SD_chipSelect)) {
+		debug_outln_info("Check SD card");
+		return;
+	}
+	debug_outln_info("Micro SD logger initialized.");
+}
+
+/*****************************************************************
    Init DNMS - Digital Noise Measurement Sensor
  *****************************************************************/
 static void initDNMS() {
@@ -4313,6 +4380,12 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		send_csv(data);
 	}
 
+	if (cfg::send2sd)
+	{
+		debug_outln_info(F("## Logging to SD: "));
+		send_csv(data);
+	}
+
 	return sum_send_time;
 }
 
@@ -4368,6 +4441,11 @@ void setup(void) {
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
 
+	if (cfg::sd_read)
+	{
+		init_SD;
+	}
+
 	if (cfg::gps_read) {
 #if defined(ESP8266)
 		serialGPS = new SoftwareSerial;
@@ -4404,9 +4482,11 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS, result_SPH0645;
+	String result_GPS, result_DNMS, result_SPH0645, result_SD;
 
 	unsigned sum_send_time = 0;
+
+	File sensor_readings = SD.open("sensor_readings.csv", FILE_WRITE);
 
 	act_micro = micros();
 	act_milli = millis();

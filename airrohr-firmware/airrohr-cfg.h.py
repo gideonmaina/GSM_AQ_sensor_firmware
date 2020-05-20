@@ -25,6 +25,7 @@ Bool		dnms_read
 String		dnms_correction
 Bool		gps_read
 Bool		rtc_read
+Bool		sd_read
 Bool		send2cfa
 Bool		ssl_cfa
 Bool		send2dusti
@@ -35,6 +36,7 @@ Bool		send2sensemap
 Bool		send2fsapp
 Bool		send2aircms
 Bool		send2csv
+Bool		send2sd
 Bool		auto_update
 Bool		use_beta
 Bool		has_display
