@@ -128,6 +128,10 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_RX D5
 #define GPS_SERIAL_TX D6
 
+// define pins for RTC I2C interface
+#define RTC_PIN_SDA D3
+#define RTC_PIN_SCL D4
+
 // define DHT pins, while reading via the PCF8574
 #define DHT_PIN 2 // pin of the PCF8574 DHT is connected to
 #define PCF8574_ADDRESS 0x02
@@ -213,6 +217,10 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define DHT_READ 1
 #define DHT_TYPE DHT22
 #define DHT_API_PIN 7
+
+// RTC
+#define RTC_READ 1
+#define RTC_API_PIN 2
 
 // HTU21D, temperature, humidity
 #define HTU21D_READ 0

@@ -103,6 +103,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <DNSServer.h>
 #include "./DHT.h"
 #include "./PCF8574.h"
+#include <RTClib.h>
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
 #include <Adafruit_SHT31.h>
@@ -224,6 +225,7 @@ namespace cfg {
 	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
+	bool rtc_read = RTC_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -308,6 +310,7 @@ bool bmx280_init_failed = false;
 bool sht3x_init_failed = false;
 bool dnms_init_failed = false;
 bool gps_init_failed = false;
+bool rtc_init_failed = false;
 bool airrohr_selftest_failed = false;
 
 #if defined(ESP8266)
@@ -381,6 +384,11 @@ DallasTemperature ds18b20(&oneWire);
  * GPS declaration                                               *
  *****************************************************************/
 TinyGPSPlus gps;
+
+/*****************************************************************
+ * RTC declaration                                               *
+ *****************************************************************/
+RTC_DS1307 rtc;
 
 /*****************************************************************
  * Variable Definitions for PPD24NS                              *
@@ -502,6 +510,8 @@ String last_value_GPS_date;
 String last_value_GPS_time;
 String last_data_string;
 int last_signal_strength;
+
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 String esp_chipid;
 String last_value_SDS_version;
@@ -3458,6 +3468,22 @@ void fetchSensorSPH0645(String& s){
 }
 
 /*****************************************************************
+ * Initialize RTC                                        		 *
+ *****************************************************************/
+void init_RTC()
+{
+	pinMode(RTC_PIN_SDA, OUTPUT);
+	pinMode(RTC_PIN_SCL, OUTPUT);
+	if (!rtc.isrunning())
+	{
+		// sets time to the date this sketch was compiled
+		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+		// Set explicit time for example 19th March 2020 at 12 noon.
+		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
+	}
+}
+
+/*****************************************************************
  * OTAUpdate                                                     *
  *****************************************************************/
 
@@ -4102,6 +4128,12 @@ static void powerOnTestSensors() {
 		debug_outln_info(F("Read DHT..."));
 	}
 
+	if (cfg::rtc_read) {
+		rtc.begin();
+		debug_outln_info(F("Read Time from RTC..."));
+		init_RTC();
+	}
+
 	if (cfg::htu21d_read) {
 		debug_outln_info(F("Read HTU21D..."));
 		// begin() might return false when using Si7021
@@ -4372,7 +4404,7 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS,result_SPH0645;
+	String result_GPS, result_DNMS, result_SPH0645;
 
 	unsigned sum_send_time = 0;
 
@@ -4450,6 +4482,25 @@ void loop(void) {
 		fetchSensorPPD(result_PPD);
 	}
 
+
+	if (cfg::rtc_read) {
+		DateTime now = rtc.now();
+		debug_outln_info("The RTC time is: ");
+		Serial.print(now.year(), DEC);
+		Serial.print('/');
+		Serial.print(now.month(), DEC);
+		Serial.print('/');
+		Serial.print(now.day(), DEC);
+		Serial.print(' ');
+		Serial.print(now.hour(), DEC);
+		Serial.print(':');
+		Serial.print(now.minute(), DEC);
+		Serial.print(':');
+		Serial.print(now.second(), DEC);
+		Serial.println();
+		delay(5000);
+  }
+  
 	if(cfg::sph0645_read){
 		fetchSensorSPH0645(result_SPH0645);
 	}
@@ -4508,6 +4559,7 @@ void loop(void) {
       		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 		}
+
 		if (cfg::sds_read) {
 			data += result_SDS;
       		sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
