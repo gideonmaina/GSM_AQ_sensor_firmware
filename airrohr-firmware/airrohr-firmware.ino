@@ -4345,7 +4345,13 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open("sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
 		sensor_readings.println(data); // Write sensors data to opened file
-		sensor_readings.print(now.hour(), DEC);	// Add data timestamp as obtained from the RTC
+		sensor_readings.print(now.year(), DEC);
+		sensor_readings.print("/");
+		sensor_readings.print(now.month(), DEC);
+		sensor_readings.print("/");
+		sensor_readings.print(now.day(), DEC);
+		sensor_readings.print(" ");
+		sensor_readings.print(now.hour(), DEC);
 		sensor_readings.print(":");
 		sensor_readings.print(now.minute(), DEC);
 		sensor_readings.print(":");
