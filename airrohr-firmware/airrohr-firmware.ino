@@ -228,7 +228,6 @@ namespace cfg {
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
 	bool rtc_read = RTC_READ;
-	bool sd_read = SD_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -4081,12 +4080,13 @@ static void init_SD()
 {	
 	serialSD.begin(115200);
 	debug_outln_info("Micro SD Logger initializing...");
-	
+
 	if (!SD.begin(SD_chipSelect)) {
 		debug_outln_info("Check SD card");
 		return;
 	}
-	debug_outln_info("Micro SD logger initialized.");
+	debug_outln_info("Card initialized.");
+
 }
 
 /*****************************************************************
@@ -4340,8 +4340,18 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 
 	if (cfg::send2sd)
 	{
+		init_SD();
+		DateTime now = rtc.now();
 		debug_outln_info(F("## Logging to SD: "));
-		send_csv(data);
+		sensor_readings = SD.open("sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings.println(data); // Write sensors data to opened file
+		sensor_readings.print(now.hour(), DEC);	// Add data timestamp as obtained from the RTC
+		sensor_readings.print(":");
+		sensor_readings.print(now.minute(), DEC);
+		sensor_readings.print(":");
+		sensor_readings.print(now.second(), DEC);
+		sensor_readings.print("");
+		delay(5000);
 	}
 
 	return sum_send_time;
@@ -4399,11 +4409,6 @@ void setup(void) {
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
 
-	if (cfg::sd_read)
-	{
-		init_SD;
-	}
-
 	if (cfg::gps_read) {
 #if defined(ESP8266)
 		serialGPS = new SoftwareSerial;
@@ -4443,8 +4448,6 @@ void loop(void) {
 	String result_GPS, result_DNMS, result_SPH0645;
 
 	unsigned sum_send_time = 0;
-
-	File sensor_readings = SD.open("sensor_readings.csv", FILE_WRITE);
 
 	act_micro = micros();
 	act_milli = millis();
@@ -4590,7 +4593,6 @@ void loop(void) {
 			data += result_SPH0645;
       		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
-			sum_send_time += sensor_readings.println(result_SPH0645); // Log SPH0645 readings to microSD card
 		}
 
 		if (cfg::ppd_read) {
@@ -4608,7 +4610,6 @@ void loop(void) {
 			data += result_PMS;
       		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			sum_send_time += sensor_readings.println(result_PMS); // Log PMSX003 sensor data to microSD card
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
@@ -4628,7 +4629,6 @@ void loop(void) {
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			sum_send_time += sensor_readings.println(result); // Log DHT sensor data to microSD card
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
@@ -4688,7 +4688,6 @@ void loop(void) {
 			data += result_GPS;
       		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			sum_send_time += sensor_readings.println(result_GPS); // Log GPS sensor data to microSD card
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
