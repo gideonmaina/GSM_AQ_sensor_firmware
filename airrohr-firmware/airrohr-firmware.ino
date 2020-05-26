@@ -104,6 +104,8 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include "./DHT.h"
 #include "./PCF8574.h"
 #include <RTClib.h>
+#include <SD.h>
+#include <SPI.h>
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
 #include <Adafruit_SHT31.h>
@@ -237,6 +239,7 @@ namespace cfg {
 	bool send2custom = SEND2CUSTOM;
 	bool send2influx = SEND2INFLUX;
 	bool send2csv = SEND2CSV;
+	bool send2sd = SEND2SD;
 
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
@@ -389,6 +392,12 @@ TinyGPSPlus gps;
  * RTC declaration                                               *
  *****************************************************************/
 RTC_DS1307 rtc;
+
+/*****************************************************************
+ * MicroSD declaration                                           *
+ *****************************************************************/
+SoftwareSerial serialSD;
+File sensor_readings;
 
 /*****************************************************************
  * Variable Definitions for PPD24NS                              *
@@ -4065,6 +4074,22 @@ static void initSPS30() {
 }
 
 /*****************************************************************
+ Init Micro SD card logger
+ *****************************************************************/
+static void init_SD()
+{	
+	serialSD.begin(115200);
+	debug_outln_info("Micro SD Logger initializing...");
+
+	if (!SD.begin(SD_chipSelect)) {
+		debug_outln_info("Check SD card");
+		return;
+	}
+	debug_outln_info("Card initialized.");
+
+}
+
+/*****************************************************************
    Init DNMS - Digital Noise Measurement Sensor
  *****************************************************************/
 static void initDNMS() {
@@ -4311,6 +4336,17 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 	if (cfg::send2csv) {
 		debug_outln_info(F("## Sending as csv: "));
 		send_csv(data);
+	}
+
+	if (cfg::send2sd)
+	{
+		init_SD();
+		DateTime now = rtc.now();
+		debug_outln_info(F("## Logging to SD: "));
+		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings.print(data); // Write sensors data to opened file
+		sensor_readings.println("/t");	// add '/t' delimeter for payloads
+		delay(5000);
 	}
 
 	return sum_send_time;

@@ -28,6 +28,7 @@ const char WWW_PASSWORD[] PROGMEM = "feinstaub";
 #define SEND2INFLUX 0
 #define SEND2LORA 0
 #define SEND2CSV 0
+#define SEND2SD 1
 #define SEND2CUSTOM 0
 
 // OpenSenseMap
@@ -132,6 +133,12 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define RTC_PIN_SDA D3
 #define RTC_PIN_SCL D4
 
+// define pins for the micro_sd logger shield
+#define SD_SCK D5
+#define SD_MISO D6
+#define SD_MOSI D7
+#define SD_chipSelect D8
+
 // define DHT pins, while reading via the PCF8574
 #define DHT_PIN 2 // pin of the PCF8574 DHT is connected to
 #define PCF8574_ADDRESS 0x02
@@ -221,6 +228,9 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 // RTC
 #define RTC_READ 1
 #define RTC_API_PIN 2
+
+// MicroSD
+#define SD_READ 1
 
 // HTU21D, temperature, humidity
 #define HTU21D_READ 0

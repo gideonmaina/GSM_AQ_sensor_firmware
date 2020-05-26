@@ -58,6 +58,7 @@ enum ConfigShapeId {
 	Config_send2fsapp,
 	Config_send2aircms,
 	Config_send2csv,
+	Config_send2sd,
 	Config_auto_update,
 	Config_use_beta,
 	Config_has_display,
@@ -123,6 +124,7 @@ const char CFG_KEY_SEND2SENSEMAP[] PROGMEM = "send2sensemap";
 const char CFG_KEY_SEND2FSAPP[] PROGMEM = "send2fsapp";
 const char CFG_KEY_SEND2AIRCMS[] PROGMEM = "send2aircms";
 const char CFG_KEY_SEND2CSV[] PROGMEM = "send2csv";
+const char CFG_KEY_SEND2SD[] PROGMEM = "send2sd";
 const char CFG_KEY_AUTO_UPDATE[] PROGMEM = "auto_update";
 const char CFG_KEY_USE_BETA[] PROGMEM = "use_beta";
 const char CFG_KEY_HAS_DISPLAY[] PROGMEM = "has_display";
@@ -188,6 +190,7 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SEND2FSAPP), &cfg::send2fsapp },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SEND2AIRCMS), &cfg::send2aircms },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SEND2CSV), &cfg::send2csv },
+	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SEND2SD), &cfg::send2sd },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_AUTO_UPDATE), &cfg::auto_update },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_USE_BETA), &cfg::use_beta },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_HAS_DISPLAY), &cfg::has_display },

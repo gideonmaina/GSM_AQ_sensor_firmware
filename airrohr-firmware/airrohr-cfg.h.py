@@ -35,6 +35,7 @@ Bool		send2sensemap
 Bool		send2fsapp
 Bool		send2aircms
 Bool		send2csv
+Bool		send2sd
 Bool		auto_update
 Bool		use_beta
 Bool		has_display
