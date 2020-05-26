@@ -4343,8 +4343,8 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SD();
 		DateTime now = rtc.now();
 		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open("sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		sensor_readings.println(data); // Write sensors data to opened file
+		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings.print(data); // Write sensors data to opened file
 		sensor_readings.print(now.year(), DEC);
 		sensor_readings.print("/");
 		sensor_readings.print(now.month(), DEC);
@@ -4357,6 +4357,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		sensor_readings.print(":");
 		sensor_readings.print(now.second(), DEC);
 		sensor_readings.print("");
+		sensor_readings.println("/t");	// add '/t' delimeter for payloads
 		delay(5000);
 	}
 
