@@ -521,6 +521,7 @@ String last_data_string;
 int last_signal_strength;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+DateTime PMS_read_time;
 
 String esp_chipid;
 String last_value_SDS_version;
@@ -3033,6 +3034,7 @@ static void fetchSensorPMS(String& s) {
 		last_value_PMS_P0 = -1;
 		last_value_PMS_P1 = -1;
 		last_value_PMS_P2 = -1;
+		PMS_read_time = rtc.now();
 		if (pms_val_count > 2) {
 			pms_pm1_sum = pms_pm1_sum - pms_pm1_min - pms_pm1_max;
 			pms_pm10_sum = pms_pm10_sum - pms_pm10_min - pms_pm10_max;
@@ -4341,9 +4343,21 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 	if (cfg::send2sd)
 	{
 		init_SD();
-		DateTime now = rtc.now();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings.print("{PMS_read_time:");
+		sensor_readings.print(PMS_read_time.year(), DEC);
+		sensor_readings.print('/');
+		sensor_readings.print(PMS_read_time.month(), DEC);
+		sensor_readings.print('/');
+		sensor_readings.print(PMS_read_time.day(), DEC);
+		sensor_readings.print('T');
+		sensor_readings.print(PMS_read_time.hour(), DEC);
+		sensor_readings.print(':');
+		sensor_readings.print(PMS_read_time.minute(), DEC);
+		sensor_readings.print(':');
+		sensor_readings.print(PMS_read_time.second(), DEC);
+		sensor_readings.print("} ");
 		sensor_readings.print(data); // Write sensors data to opened file
 		sensor_readings.println("/t");	// add '/t' delimeter for payloads
 		delay(5000);
