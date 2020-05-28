@@ -228,6 +228,7 @@ namespace cfg {
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
 	bool rtc_read = RTC_READ;
+	bool pcf_read = PCF_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -356,6 +357,11 @@ SoftwareSerial* serialGPS;
  * DHT declaration                                               *
  *****************************************************************/
 DHT dht(DHT_PIN, DHT_TYPE, PCF8574_ADDRESS);
+
+/*****************************************************************
+ * PCF8574 declaration                                           *
+ *****************************************************************/
+PCF8574 pcf8574(0x20);
 
 /*****************************************************************
  * HTU21D declaration                                            *
@@ -3490,6 +3496,20 @@ void init_RTC()
 		// Set explicit time for example 19th March 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
 	}
+}
+
+/*****************************************************************
+ * Init PCF8574                                                  *
+ *****************************************************************/
+void init_pcf8574()
+{
+	Wire.begin(2, 1);
+	Wire.setClock(100000L);
+	pcf8574.begin();
+	pcf8574.pinMode(P0, INPUT_PULLUP);
+	pcf8574.pinMode(P0, OUTPUT, HIGH);
+	pcf8574.digitalWrite(P0, HIGH);
+	pcf8574.digitalWrite(P0, LOW);
 }
 
 /*****************************************************************
