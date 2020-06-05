@@ -356,12 +356,7 @@ SoftwareSerial* serialGPS;
 /*****************************************************************
  * DHT declaration                                               *
  *****************************************************************/
-DHT dht(DHT_PIN, DHT_TYPE, PCF8574_ADDRESS);
-
-/*****************************************************************
- * PCF8574 declaration                                           *
- *****************************************************************/
-PCF8574 pcf8574(0x20);
+DHT dht(ONEWIRE_PIN, DHT_TYPE);
 
 /*****************************************************************
  * HTU21D declaration                                            *
@@ -3493,23 +3488,9 @@ void init_RTC()
 	{
 		// sets time to the date this sketch was compiled
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-		// Set explicit time for example 19th March 2020 at 12 noon.
+		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
 	}
-}
-
-/*****************************************************************
- * Init PCF8574                                                  *
- *****************************************************************/
-void init_pcf8574()
-{
-	Wire.begin(2, 1);
-	Wire.setClock(100000L);
-	pcf8574.begin();
-	pcf8574.pinMode(P0, INPUT_PULLUP);
-	pcf8574.pinMode(P0, OUTPUT, HIGH);
-	pcf8574.digitalWrite(P0, HIGH);
-	pcf8574.digitalWrite(P0, LOW);
 }
 
 /*****************************************************************
