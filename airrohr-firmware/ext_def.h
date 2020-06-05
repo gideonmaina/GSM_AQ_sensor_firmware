@@ -233,9 +233,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 // MicroSD
 #define SD_READ 1
 
-// PCF8574P GPIO expander
-#define PCF_READ 1
-
 // HTU21D, temperature, humidity
 #define HTU21D_READ 0
 #define HTU21D_API_PIN 7
