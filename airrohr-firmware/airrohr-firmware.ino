@@ -517,6 +517,7 @@ double last_value_GPS_lon = -200.0;
 double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
+String last_value_PMS_time;
 String last_data_string;
 int last_signal_strength;
 
@@ -2551,7 +2552,13 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "]}";
+		data_CFA += "], \"PMS_time\":";
+		data_CFA += "\"";
+		data_CFA += last_value_PMS_time;
+		data_CFA += "\"";
+		data_CFA += "}";
+		sensor_readings.print(data_CFA);
+		Serial.println(data_CFA);
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
 
@@ -2903,6 +2910,7 @@ static void fetchSensorSDS(String& s) {
  *****************************************************************/
 static void fetchSensorPMS(String& s) {
 	char buffer;
+	char buf[20];
 	int value;
 	int len = 0;
 	int pm1_serial = 0;
@@ -2914,6 +2922,9 @@ static void fetchSensorPMS(String& s) {
 	int frame_len = 24;				// min. frame length
 
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
+	DateTime now = rtc.now();
+    sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+    last_value_PMS_time = buf;
 	if (msSince(starttime) < (cfg::sending_intervall_ms - (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS))) {
 		if (is_PMS_running) {
 			is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
@@ -3016,6 +3027,7 @@ static void fetchSensorPMS(String& s) {
 						debug_outln_verbose(F("PM1 (sec.): "), String(pm1_serial));
 						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
 						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
+						debug_outln_verbose(F("Timestamp"), String(last_value_PMS_time));
 						pms_val_count++;
 					}
 					len = 0;
@@ -4345,21 +4357,6 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		sensor_readings.print("{PMS_read_time:");
-		sensor_readings.print(PMS_read_time.year(), DEC);
-		sensor_readings.print('/');
-		sensor_readings.print(PMS_read_time.month(), DEC);
-		sensor_readings.print('/');
-		sensor_readings.print(PMS_read_time.day(), DEC);
-		sensor_readings.print('T');
-		sensor_readings.print(PMS_read_time.hour(), DEC);
-		sensor_readings.print(':');
-		sensor_readings.print(PMS_read_time.minute(), DEC);
-		sensor_readings.print(':');
-		sensor_readings.print(PMS_read_time.second(), DEC);
-		sensor_readings.print("} ");
-		sensor_readings.print(data); // Write sensors data to opened file
-		sensor_readings.println("/t");	// add '/t' delimeter for payloads
 		delay(5000);
 	}
 
@@ -4619,6 +4616,7 @@ void loop(void) {
 			data += result_PMS;
       		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			sum_send_time += sensor_readings.print(result_PMS); //Log PMSX003 data to SD card
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
