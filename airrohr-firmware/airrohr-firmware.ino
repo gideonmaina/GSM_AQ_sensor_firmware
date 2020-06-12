@@ -4718,6 +4718,7 @@ void loop(void) {
 			data += result_GPS;
       		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			sum_send_time += sensor_readings.print(result_GPS); //Log GPS data to SD card
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
