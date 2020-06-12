@@ -2921,9 +2921,6 @@ static void fetchSensorPMS(String& s) {
 	int frame_len = 24;				// min. frame length
 
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
-	DateTime now = rtc.now();
-    sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-    last_value_PMS_time = buf;
 	if (msSince(starttime) < (cfg::sending_intervall_ms - (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS))) {
 		if (is_PMS_running) {
 			is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
@@ -3041,11 +3038,14 @@ static void fetchSensorPMS(String& s) {
 		}
 	}
 
+	DateTime now = rtc.now();
+	sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	last_value_PMS_time = buf;
+
 	if (send_now) {
 		last_value_PMS_P0 = -1;
 		last_value_PMS_P1 = -1;
 		last_value_PMS_P2 = -1;
-		PMS_read_time = rtc.now();
 		if (pms_val_count > 2) {
 			pms_pm1_sum = pms_pm1_sum - pms_pm1_min - pms_pm1_max;
 			pms_pm10_sum = pms_pm10_sum - pms_pm10_min - pms_pm10_max;
