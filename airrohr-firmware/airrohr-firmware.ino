@@ -518,6 +518,7 @@ double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
 String last_value_PMS_time;
+String last_value_DHT_time;
 String last_data_string;
 int last_signal_strength;
 
@@ -2555,6 +2556,10 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += "\"";
 		data_CFA += last_value_PMS_time;
 		data_CFA += "\"";
+		data_CFA += ", \"DHT_time\":";
+		data_CFA += "\"";
+		data_CFA += last_value_DHT_time;
+		data_CFA += "\"";
 		data_CFA += "}";
 		sensor_readings.print(data_CFA);
 		Serial.println(data_CFA);
@@ -2656,6 +2661,12 @@ static void send_csv(const String& data) {
  *****************************************************************/
 static void fetchSensorDHT(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DHT22));
+
+	// Obtain DHT_time from RTC
+	char buf1[20];
+	DateTime now = rtc.now();
+	sprintf(buf1, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	last_value_DHT_time = buf1;
 
 	// Check if valid number if non NaN (not a number) will be send.
 	last_value_DHT_T = -128;
@@ -4635,6 +4646,7 @@ void loop(void) {
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			sum_send_time += sensor_readings.print(result); //Log DHT data to SD card
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
