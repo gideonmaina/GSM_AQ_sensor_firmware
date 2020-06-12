@@ -522,7 +522,6 @@ String last_data_string;
 int last_signal_strength;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-DateTime PMS_read_time;
 
 String esp_chipid;
 String last_value_SDS_version;
