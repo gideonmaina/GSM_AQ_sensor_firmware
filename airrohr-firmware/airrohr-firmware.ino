@@ -519,6 +519,7 @@ String last_value_GPS_date;
 String last_value_GPS_time;
 String last_value_PMS_time;
 String last_value_DHT_time;
+String last_value_SPH0645_time;
 String last_data_string;
 int last_signal_strength;
 
@@ -2560,6 +2561,10 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += "\"";
 		data_CFA += last_value_DHT_time;
 		data_CFA += "\"";
+		data_CFA += ", \"SPH0645_time\":";
+		data_CFA += "\"";
+		data_CFA += last_value_SPH0645_time;
+		data_CFA += "\"";
 		data_CFA += "}";
 		sensor_readings.print(data_CFA);
 		Serial.println(data_CFA);
@@ -3492,6 +3497,12 @@ void fetchSensorSPH0645(String& s){
     }
     rx_buf_flag = false;
   }
+
+//	Obtain SPH0645 send_time from RTC
+  char buf2[20];
+  DateTime now = rtc.now();
+  sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+  last_value_SPH0645_time = buf2;
 
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
@@ -4609,6 +4620,7 @@ void loop(void) {
 			data += result_SPH0645;
       		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
+			sum_send_time += sensor_readings.println(result_SPH0645);	// Log SPH0645 data to SD
 		}
 
 		if (cfg::ppd_read) {
