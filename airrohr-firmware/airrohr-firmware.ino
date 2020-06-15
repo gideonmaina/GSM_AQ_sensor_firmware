@@ -517,9 +517,7 @@ double last_value_GPS_lon = -200.0;
 double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
-String last_value_PMS_time;
-String last_value_DHT_time;
-String last_value_SPH0645_time;
+String timestamp;
 String last_data_string;
 int last_signal_strength;
 
@@ -2540,7 +2538,7 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 /*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
  *****************************************************************/
-static unsigned long sendCFA(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
+static unsigned long sendCFA(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str, const String &timestamp)
 {
 	unsigned long sum_send_time = 0;
 
@@ -2553,17 +2551,9 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "], \"PMS_time\":";
+		data_CFA += "], \"Timestamp\":";
 		data_CFA += "\"";
-		data_CFA += last_value_PMS_time;
-		data_CFA += "\"";
-		data_CFA += ", \"DHT_time\":";
-		data_CFA += "\"";
-		data_CFA += last_value_DHT_time;
-		data_CFA += "\"";
-		data_CFA += ", \"SPH0645_time\":";
-		data_CFA += "\"";
-		data_CFA += last_value_SPH0645_time;
+		data_CFA += timestamp;
 		data_CFA += "\"";
 		data_CFA += "}";
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
@@ -2669,7 +2659,7 @@ static void fetchSensorDHT(String& s) {
 	char buf1[20];
 	DateTime now = rtc.now();
 	sprintf(buf1, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	last_value_DHT_time = buf1;
+	timestamp = buf1;
 
 	// Check if valid number if non NaN (not a number) will be send.
 	last_value_DHT_T = -128;
@@ -3037,7 +3027,7 @@ static void fetchSensorPMS(String& s) {
 						debug_outln_verbose(F("PM1 (sec.): "), String(pm1_serial));
 						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
 						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
-						debug_outln_verbose(F("Timestamp"), String(last_value_PMS_time));
+						debug_outln_verbose(F("Timestamp"), String(timestamp));
 						pms_val_count++;
 					}
 					len = 0;
@@ -3054,7 +3044,7 @@ static void fetchSensorPMS(String& s) {
 
 	DateTime now = rtc.now();
 	sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	last_value_PMS_time = buf;
+	timestamp = buf;
 
 	if (send_now) {
 		last_value_PMS_P0 = -1;
@@ -3500,7 +3490,7 @@ void fetchSensorSPH0645(String& s){
   char buf2[20];
   DateTime now = rtc.now();
   sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  last_value_SPH0645_time = buf2;
+  timestamp = buf2;
 
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
@@ -4616,7 +4606,7 @@ void loop(void) {
 
 		if(cfg::sph0645_read){
 			data += result_SPH0645;
-      		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+      		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_", timestamp);
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
 			sum_send_time += sensor_readings.print(result_SPH0645);	// Log SPH0645 data to SD
 			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging mic data
@@ -4624,31 +4614,31 @@ void loop(void) {
 
 		if (cfg::ppd_read) {
 			data += result_PPD;
-      		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+      		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_", timestamp);
 			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
 		}
 
 		if (cfg::sds_read) {
 			data += result_SDS;
-      		sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+      		sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
 		}
 		if (cfg::pms_read) {
 			data += result_PMS;
-      		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+      		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sensor_readings.print(result_PMS); //Log PMSX003 data to SD card
 			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging PMSX003 data
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
-      		sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+      		sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_", timestamp);
 			sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
 		}
 		if (cfg::sps30_read && (! sps30_init_failed)) {
 			fetchSensorSPS30(result);
 			data += result;
-      		sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+      		sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_", timestamp);
 			sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
 			result = emptyString;
 		}
@@ -4656,7 +4646,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorDHT(result);
 			data += result;
-      		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+      		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_", timestamp);
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sensor_readings.print(result); //Log DHT data to SD card
 			sum_send_time += sensor_readings.println("/t");	  //	Add delimiter after logging DHT data
@@ -4666,7 +4656,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorHTU21D(result);
 			data += result;
-      		sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+      		sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_", timestamp);
 			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
 			result = emptyString;
 		}
@@ -4674,7 +4664,7 @@ void loop(void) {
 			// getting temperature and pressure (optional)
 			fetchSensorBMP(result);
 			data += result;
-      		sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+      		sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_", timestamp);
 			sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
 			result = emptyString;
 		}
@@ -4683,10 +4673,10 @@ void loop(void) {
 			fetchSensorBMX280(result);
 			data += result;
 			if (bmx280.sensorID() == BME280_SENSOR_ID) {
-        		sum_send_time += sendCFA(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
+        		sum_send_time += sendCFA(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_", timestamp);
 				sum_send_time += sendSensorCommunity(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
 			} else {
-        		sum_send_time += sendCFA(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
+        		sum_send_time += sendCFA(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_", timestamp);
 				sum_send_time += sendSensorCommunity(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
 			}
 			result = emptyString;
@@ -4695,7 +4685,7 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorSHT3x(result);
 			data += result;
-      		sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+      		sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_", timestamp);
 			sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
 			result = emptyString;
 		}
@@ -4703,7 +4693,7 @@ void loop(void) {
 			// getting temperature (optional)
 			fetchSensorDS18B20(result);
 			data += result;
-      		sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+      		sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_", timestamp);
 			sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
 			result = emptyString;
 		}
@@ -4711,13 +4701,13 @@ void loop(void) {
 			// getting noise measurement values from dnms (optional)
 			fetchSensorDNMS(result);
 			data += result;
-      		sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+      		sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_", timestamp);
 			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
 			result = emptyString;
 		}
 		if (cfg::gps_read) {
 			data += result_GPS;
-      		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+      		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			sum_send_time += sensor_readings.print(result_GPS); //Log GPS data to SD card
 			sum_send_time += sensor_readings.println("/t");		  //	Add delimiter after logging GPS data
