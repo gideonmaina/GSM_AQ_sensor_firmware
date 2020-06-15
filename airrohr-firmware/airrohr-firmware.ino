@@ -3431,6 +3431,12 @@ static void fetchSensorGPS(String& s) {
 		}
 	}
 
+	// Obtain GPS send_time from RTC
+	char buf3[20];
+	DateTime now = rtc.now();
+	sprintf(buf3, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf3;
+
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
 		debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
@@ -4608,7 +4614,7 @@ void loop(void) {
 			data += result_SPH0645;
       		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_", timestamp);
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
-			sum_send_time += sensor_readings.print(result_SPH0645);	// Log SPH0645 data to SD
+			sum_send_time += sensor_readings.print(result_SPH0645 + "," + SPH0645_API_PIN + "," + FPSTR(SENSORS_SPH0645) + ",SPH0645_ ," + timestamp); // Log SPH0645 data to SD
 			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging mic data
 		}
 
@@ -4627,7 +4633,7 @@ void loop(void) {
 			data += result_PMS;
       		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			sum_send_time += sensor_readings.print(result_PMS); //Log PMSX003 data to SD card
+			sum_send_time += sensor_readings.print(result_PMS + "," + PMS_API_PIN + "," + FPSTR(SENSORS_PMSx003) + ",PMS_ ," + timestamp); // Log PMSX003 data to SD
 			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging PMSX003 data
 		}
 		if (cfg::hpm_read) {
@@ -4648,7 +4654,7 @@ void loop(void) {
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_", timestamp);
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			sum_send_time += sensor_readings.print(result); //Log DHT data to SD card
+			sum_send_time += sensor_readings.print(result + "," + DHT_API_PIN + "," + FPSTR(SENSORS_DHT22) + ",DHT_ ," + timestamp); // Log DHT data to SD
 			sum_send_time += sensor_readings.println("/t");	  //	Add delimiter after logging DHT data
 			result = emptyString;
 		}
@@ -4709,6 +4715,7 @@ void loop(void) {
 			data += result_GPS;
       		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			sum_send_time += sensor_readings.print(result_GPS + "," + GPS_API_PIN + "," + F("GPS") + "GPS_"); // Log GPS data to SD
 			sum_send_time += sensor_readings.print(result_GPS); //Log GPS data to SD card
 			sum_send_time += sensor_readings.println("/t");		  //	Add delimiter after logging GPS data
 			result = emptyString;
