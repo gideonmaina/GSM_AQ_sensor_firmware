@@ -2566,8 +2566,6 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += last_value_SPH0645_time;
 		data_CFA += "\"";
 		data_CFA += "}";
-		sensor_readings.print(data_CFA);
-		Serial.println(data_CFA);
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
 
