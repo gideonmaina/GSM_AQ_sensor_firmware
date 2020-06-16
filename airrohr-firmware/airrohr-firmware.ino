@@ -2555,15 +2555,12 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "], \"Timestamp\":";
-		data_CFA += "\"";
-		data_CFA += timestamp;
-		data_CFA += "\"";
-		data_CFA += "}";
+		data_CFA += "]}";
 		sensor_readings.print(data_CFA);
-		sensor_readings.print("{");
-		sensor_readings.print(timestamp);
-		sensor_readings.print("}");
+		sensor_readings.print(", ");
+		sensor_readings.print(pin);
+		sensor_readings.print(", ");
+		sensor_readings.print(sensorname);
 		sensor_readings.println("/t");
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
@@ -2691,6 +2688,7 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
+			add_Value2Json(s, F("timestamp"), DHT_send_time);
 			break;
 		}
 	}
@@ -3071,6 +3069,7 @@ static void fetchSensorPMS(String& s) {
 			add_Value2Json(s, F("PMS_P0"), F("PM1:   "), last_value_PMS_P0);
 			add_Value2Json(s, F("PMS_P1"), F("PM10:  "), last_value_PMS_P1);
 			add_Value2Json(s, F("PMS_P2"), F("PM2.5: "), last_value_PMS_P2);
+			add_Value2Json(s, F("timestamp"), PMS_send_time);
 			debug_outln_info(FPSTR(DBG_TXT_SEP));
 		}
 		pms_pm1_sum = 0;
@@ -3456,6 +3455,7 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
 		add_Value2Json(s, F("GPS_date"), last_value_GPS_date);
 		add_Value2Json(s, F("GPS_time"), last_value_GPS_time);
+		add_Value2Json(s, F("timestamp"), GPS_send_time);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 	}
 
@@ -3509,6 +3509,7 @@ void fetchSensorSPH0645(String& s){
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+	  add_Value2Json(s, F("timestamp"), mic_send_time);
   }
 
 }
