@@ -518,6 +518,10 @@ double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
 String timestamp;
+String PMS_send_time;
+String mic_send_time;
+String DHT_send_time;
+String GPS_send_time;
 String last_data_string;
 int last_signal_strength;
 
@@ -2556,6 +2560,11 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += timestamp;
 		data_CFA += "\"";
 		data_CFA += "}";
+		sensor_readings.print(data_CFA);
+		sensor_readings.print("{");
+		sensor_readings.print(timestamp);
+		sensor_readings.print("}");
+		sensor_readings.println("/t");
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
 
@@ -2659,7 +2668,7 @@ static void fetchSensorDHT(String& s) {
 	char buf1[20];
 	DateTime now = rtc.now();
 	sprintf(buf1, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf1;
+	DHT_send_time = buf1;
 
 	// Check if valid number if non NaN (not a number) will be send.
 	last_value_DHT_T = -128;
@@ -3027,7 +3036,6 @@ static void fetchSensorPMS(String& s) {
 						debug_outln_verbose(F("PM1 (sec.): "), String(pm1_serial));
 						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
 						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
-						debug_outln_verbose(F("Timestamp"), String(timestamp));
 						pms_val_count++;
 					}
 					len = 0;
@@ -3044,7 +3052,7 @@ static void fetchSensorPMS(String& s) {
 
 	DateTime now = rtc.now();
 	sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf;
+	PMS_send_time = buf;
 
 	if (send_now) {
 		last_value_PMS_P0 = -1;
@@ -3435,7 +3443,7 @@ static void fetchSensorGPS(String& s) {
 	char buf3[20];
 	DateTime now = rtc.now();
 	sprintf(buf3, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf3;
+	GPS_send_time = buf3;
 
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
@@ -3496,7 +3504,7 @@ void fetchSensorSPH0645(String& s){
   char buf2[20];
   DateTime now = rtc.now();
   sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  timestamp = buf2;
+  mic_send_time = buf2;
 
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
@@ -4614,8 +4622,6 @@ void loop(void) {
 			data += result_SPH0645;
       		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_", timestamp);
 			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
-			sum_send_time += sensor_readings.print(result_SPH0645 + "," + SPH0645_API_PIN + "," + FPSTR(SENSORS_SPH0645) + ",SPH0645_ ," + timestamp); // Log SPH0645 data to SD
-			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging mic data
 		}
 
 		if (cfg::ppd_read) {
@@ -4633,8 +4639,6 @@ void loop(void) {
 			data += result_PMS;
       		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			sum_send_time += sensor_readings.print(result_PMS + "," + PMS_API_PIN + "," + FPSTR(SENSORS_PMSx003) + ",PMS_ ," + timestamp); // Log PMSX003 data to SD
-			sum_send_time += sensor_readings.println("/t");	//	Add delimiter after logging PMSX003 data
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
@@ -4654,8 +4658,6 @@ void loop(void) {
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_", timestamp);
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			sum_send_time += sensor_readings.print(result + "," + DHT_API_PIN + "," + FPSTR(SENSORS_DHT22) + ",DHT_ ," + timestamp); // Log DHT data to SD
-			sum_send_time += sensor_readings.println("/t");	  //	Add delimiter after logging DHT data
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
@@ -4715,9 +4717,6 @@ void loop(void) {
 			data += result_GPS;
       		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_", timestamp);
 			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			sum_send_time += sensor_readings.print(result_GPS + "," + GPS_API_PIN + "," + F("GPS") + "GPS_"); // Log GPS data to SD
-			sum_send_time += sensor_readings.print(result_GPS); //Log GPS data to SD card
-			sum_send_time += sensor_readings.println("/t");		  //	Add delimiter after logging GPS data
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
