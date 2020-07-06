@@ -3110,6 +3110,8 @@ String fetchSensorPMSFromAtmega(){
 			String pms_data = atmega328p.readString();
 			if(pms_data.indexOf("PMS")){
 				s = pms_data;
+				Serial.println("Here PMS ->" );
+				Serial.println(s);
 			}
 		}
 	}
@@ -3499,9 +3501,10 @@ String fetchSensorGPSFromAtmega(){
 	delay(3000);
 	while(atmega328p.available() > 0){
 		String gps_data = atmega328p.readString();
-		if(gps_data.indexOf("DHT")){
+		if(gps_data.indexOf("GPS")){
 			s = gps_data;
-			//Serial.println(s);
+			Serial.println("Here GPS ->" );
+			Serial.println(s);
 		}
 	}
 
@@ -3546,6 +3549,8 @@ void fetchSensorSPH0645(String& s){
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+	  Serial.print(" here -> ");
+	  Serial.println(s);
   }
 
 }
