@@ -2692,7 +2692,7 @@ static void fetchSensorDHT(String& s) {
  * read DHT22 sensor values from ATMEGA328P                                     *
  *****************************************************************/
 String fetchSensorDHTFromAtmega(){
-	String s;
+	RESERVE_STRING(s,SMALL_STR);
 	//request DHT values from atmega328p
 	atmega328p.println("fetchSensorDHT");
 	delay(3000);
