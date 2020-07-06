@@ -352,6 +352,11 @@ SoftwareSerial* serialGPS;
 #define serialGPS (&(Serial2))
 #endif
 
+/****************************************************************
+ * ATMEGA328P declaration
+ * **************************************************************/
+SoftwareSerial atmega328p;
+
 /*****************************************************************
  * DHT declaration                                               *
  *****************************************************************/
@@ -463,6 +468,7 @@ int pms_pm10_max = 0;
 int pms_pm10_min = 20000;
 int pms_pm25_max = 0;
 int pms_pm25_min = 20000;
+bool readPMSFromAtmega = true;
 
 int hpm_pm10_sum = 0;
 int hpm_pm25_sum = 0;
@@ -519,6 +525,9 @@ String last_value_GPS_date;
 String last_value_GPS_time;
 String last_data_string;
 int last_signal_strength;
+bool readGPSFromAtmega = true;
+
+bool readDHTFromAtmega = true;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -2680,6 +2689,28 @@ static void fetchSensorDHT(String& s) {
 }
 
 /*****************************************************************
+ * read DHT22 sensor values from ATMEGA328P                                     *
+ *****************************************************************/
+String fetchSensorDHTFromAtmega(){
+	String s;
+	//request DHT values from atmega328p
+	atmega328p.println("fetchSensorDHT");
+	delay(3000);
+	while(atmega328p.available() > 0){
+		String dht_data = atmega328p.readString();
+		if(dht_data.indexOf("DHT")){
+			s = dht_data;
+			//Serial.println(s);
+		}
+	}
+
+	debug_outln_info(FPSTR(DBG_TXT_SEP));
+	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
+
+	return s;
+}
+
+/*****************************************************************
  * read HTU21D sensor values                                     *
  *****************************************************************/
 static void fetchSensorHTU21D(String& s) {
@@ -3066,6 +3097,27 @@ static void fetchSensorPMS(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 }
 
+
+/*****************************************************************
+ * read Plantronic PM sensor sensor values  from ATMEGA                     *
+ *****************************************************************/
+String fetchSensorPMSFromAtmega(){
+	String s;
+	if(send_now){
+		atmega328p.println("fetchSensorPMS");
+		delay(WARMUPTIME_SDS_MS + READINGTIME_SDS_MS + 2000);
+		while(atmega328p.available() > 0){
+			String pms_data = atmega328p.readString();
+			if(pms_data.indexOf("PMS")){
+				s = pms_data;
+			}
+		}
+	}
+
+	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
+	return s;
+}
+
 /*****************************************************************
  * read Honeywell PM sensor sensor values                        *
  *****************************************************************/
@@ -3434,6 +3486,28 @@ static void fetchSensorGPS(String& s) {
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), "GPS");
+}
+
+
+/*****************************************************************
+ * read GPS sensor values from ATMEGA                                        *
+ *****************************************************************/
+String fetchSensorGPSFromAtmega(){
+	String s;
+	//request GPS values from atmega328p
+	atmega328p.println("fetchSensorGPS");
+	delay(3000);
+	while(atmega328p.available() > 0){
+		String gps_data = atmega328p.readString();
+		if(gps_data.indexOf("DHT")){
+			s = gps_data;
+			//Serial.println(s);
+		}
+	}
+
+	debug_outln_info(FPSTR(DBG_TXT_SEP));
+	
+	return s;
 }
 
 /****************************************************************
@@ -4357,7 +4431,8 @@ static unsigned long sendDataToOptionalApis(const String &data) {
  *****************************************************************/
 
 void setup(void) {
-	Serial.begin(9600);					// Output to Serial at 9600 baud
+	Serial.begin(9600);	// Output to Serial at 9600 baud
+	atmega328p.begin(9600, SWSERIAL_8N1,ATMEGA_TX,ATMEGA_RX,false,256);
 	
 #if defined(ESP8266)
 	serialSDS.begin(9600, SWSERIAL_8N1, PM_SERIAL_RX, PM_SERIAL_TX);
@@ -4548,7 +4623,13 @@ void loop(void) {
 		}
 
 		if (cfg::pms_read) {
-			fetchSensorPMS(result_PMS);
+			if(readPMSFromAtmega){
+				result_PMS = fetchSensorPMSFromAtmega();
+			}
+			else{
+				fetchSensorPMS(result_PMS);
+			}
+			
 		}
 
 		if (cfg::hpm_read) {
@@ -4564,7 +4645,13 @@ void loop(void) {
 
 		if ((msSince(starttime_GPS) > SAMPLETIME_GPS_MS) || send_now) {
 			// getting GPS coordinates
-			fetchSensorGPS(result_GPS);
+			if(readGPSFromAtmega){
+				result_GPS = fetchSensorGPSFromAtmega();
+			}
+			else{
+				fetchSensorGPS(result_GPS);
+			}
+			
 			starttime_GPS = act_milli;
 		}
 	}
@@ -4620,7 +4707,12 @@ void loop(void) {
 		}
 		if (cfg::dht_read) {
 			// getting temperature and humidity (optional)
-			fetchSensorDHT(result);
+			if(readDHTFromAtmega){
+				result = fetchSensorDHTFromAtmega();
+			}
+			else{
+				fetchSensorDHT(result);
+			}
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
