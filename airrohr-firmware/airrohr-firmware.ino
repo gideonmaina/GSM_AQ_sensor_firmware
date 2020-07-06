@@ -3102,7 +3102,8 @@ static void fetchSensorPMS(String& s) {
  * read Plantronic PM sensor sensor values  from ATMEGA                     *
  *****************************************************************/
 String fetchSensorPMSFromAtmega(){
-	String s;
+	RESERVE_STRING(s,SMALL_STR);
+
 	if(send_now){
 		atmega328p.println("fetchSensorPMS");
 		delay(WARMUPTIME_SDS_MS + READINGTIME_SDS_MS + 2000);
@@ -3110,8 +3111,7 @@ String fetchSensorPMSFromAtmega(){
 			String pms_data = atmega328p.readString();
 			if(pms_data.indexOf("PMS")){
 				s = pms_data;
-				Serial.println("Here PMS ->" );
-				Serial.println(s);
+				//Serial.println(s);
 			}
 		}
 	}
@@ -3495,7 +3495,7 @@ static void fetchSensorGPS(String& s) {
  * read GPS sensor values from ATMEGA                                        *
  *****************************************************************/
 String fetchSensorGPSFromAtmega(){
-	String s;
+	RESERVE_STRING(s,SMALL_STR);
 	//request GPS values from atmega328p
 	atmega328p.println("fetchSensorGPS");
 	delay(3000);
@@ -3503,8 +3503,7 @@ String fetchSensorGPSFromAtmega(){
 		String gps_data = atmega328p.readString();
 		if(gps_data.indexOf("GPS")){
 			s = gps_data;
-			Serial.println("Here GPS ->" );
-			Serial.println(s);
+			//Serial.println(s);
 		}
 	}
 
