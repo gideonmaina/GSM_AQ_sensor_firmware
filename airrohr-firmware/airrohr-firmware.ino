@@ -2689,24 +2689,26 @@ static void fetchSensorDHT(String& s) {
 }
 
 /*****************************************************************
- * read DHT22 sensor values from ATMEGA328P                                     *
+ * read DHT22 sensor values from ATMEGA328P                      *
  *****************************************************************/
 String fetchSensorDHTFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DHT22));
 	RESERVE_STRING(s,SMALL_STR);
+
 	//request DHT values from atmega328p
 	atmega328p.println("fetchSensorDHT");
 	delay(3000);
 	while(atmega328p.available() > 0){
 		String dht_data = atmega328p.readString();
 		if(dht_data.indexOf("DHT")){
-			s = dht_data;
+			int last_character = dht_data.lastIndexOf(",");
+			s = dht_data.substring(0,(last_character+1));
 			//Serial.println(s);
 		}
 	}
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
-
 	return s;
 }
 
@@ -3102,6 +3104,7 @@ static void fetchSensorPMS(String& s) {
  * read Plantronic PM sensor sensor values  from ATMEGA                     *
  *****************************************************************/
 String fetchSensorPMSFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
 	RESERVE_STRING(s,SMALL_STR);
 
 	if(send_now){
@@ -3110,7 +3113,8 @@ String fetchSensorPMSFromAtmega(){
 		while(atmega328p.available() > 0){
 			String pms_data = atmega328p.readString();
 			if(pms_data.indexOf("PMS")){
-				s = pms_data;
+				int last_character = pms_data.lastIndexOf(",");
+				s = pms_data.substring(0,(last_character+1));
 				//Serial.println(s);
 			}
 		}
@@ -3495,20 +3499,22 @@ static void fetchSensorGPS(String& s) {
  * read GPS sensor values from ATMEGA                                        *
  *****************************************************************/
 String fetchSensorGPSFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), "GPS");
 	RESERVE_STRING(s,SMALL_STR);
+
 	//request GPS values from atmega328p
 	atmega328p.println("fetchSensorGPS");
 	delay(3000);
 	while(atmega328p.available() > 0){
 		String gps_data = atmega328p.readString();
 		if(gps_data.indexOf("GPS")){
-			s = gps_data;
+			int last_character = gps_data.lastIndexOf(",");
+			s = gps_data.substring(0,(last_character+1));
 			//Serial.println(s);
 		}
 	}
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	
 	return s;
 }
 
@@ -3548,8 +3554,6 @@ void fetchSensorSPH0645(String& s){
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
-	  Serial.print(" here -> ");
-	  Serial.println(s);
   }
 
 }
