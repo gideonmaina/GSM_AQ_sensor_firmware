@@ -352,10 +352,15 @@ SoftwareSerial* serialGPS;
 #define serialGPS (&(Serial2))
 #endif
 
+/****************************************************************
+ * ATMEGA328P declaration
+ * **************************************************************/
+SoftwareSerial atmega328p;
+
 /*****************************************************************
  * DHT declaration                                               *
  *****************************************************************/
-DHT dht(DHT_PIN, DHT_TYPE, PCF8574_ADDRESS);
+DHT dht(ONEWIRE_PIN, DHT_TYPE);
 
 /*****************************************************************
  * HTU21D declaration                                            *
@@ -463,6 +468,7 @@ int pms_pm10_max = 0;
 int pms_pm10_min = 20000;
 int pms_pm25_max = 0;
 int pms_pm25_min = 20000;
+bool readPMSFromAtmega = true;
 
 int hpm_pm10_sum = 0;
 int hpm_pm25_sum = 0;
@@ -524,6 +530,9 @@ String DHT_send_time;
 String GPS_send_time;
 String last_data_string;
 int last_signal_strength;
+bool readGPSFromAtmega = true;
+
+bool readDHTFromAtmega = true;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -2697,6 +2706,62 @@ static void fetchSensorDHT(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
 }
 
+
+/*****************************************************************
+ * parse DHT22 sensor values for DEBUG				              *
+ *****************************************************************/
+void parseDHTPayloadForDebug(String &dht_data){
+	int start_DHT_T = dht_data.indexOf('{');
+	int end_DHT_T = dht_data.indexOf('}',start_DHT_T);
+	String DHT_T_value = dht_data.substring(start_DHT_T,end_DHT_T);
+	
+	DynamicJsonDocument DHT_T_doc(1024);
+	deserializeJson(DHT_T_doc,DHT_T_value);
+  	JsonObject DHT_T_obj = DHT_T_doc.as<JsonObject>();
+	String T_value = DHT_T_obj["value"];
+
+	int start_DHT_H = dht_data.indexOf('{',end_DHT_T);
+	int end_DHT_H = dht_data.indexOf('}',start_DHT_H);
+	String DHT_H_value = dht_data.substring(start_DHT_H,end_DHT_H);
+	
+	DynamicJsonDocument DHT_H_doc(1024);
+	deserializeJson(DHT_H_doc,DHT_H_value);
+  	JsonObject DHT_H_obj = DHT_H_doc.as<JsonObject>();
+	String H_value = DHT_H_obj["value"];
+
+	last_value_DHT_T = T_value.toFloat();
+	last_value_DHT_H = H_value.toFloat();
+
+	debug_outln_info(FPSTR(DBG_TXT_TEMPERATURE),last_value_DHT_T);
+	debug_outln_info(FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
+
+}
+
+/*****************************************************************
+ * read DHT22 sensor values from ATMEGA328P                      *
+ *****************************************************************/
+String fetchSensorDHTFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DHT22));
+	RESERVE_STRING(s,SMALL_STR);
+
+	//request DHT values from atmega328p
+	atmega328p.println("fetchSensorDHT");
+	delay(3000);
+	while(atmega328p.available() > 0){
+		String dht_data = atmega328p.readString();
+		if(dht_data.indexOf("DHT")){
+			int last_character = dht_data.lastIndexOf(",");
+			s = dht_data.substring(0,(last_character+1));
+			parseDHTPayloadForDebug(s);
+			//Serial.println(s);
+		}
+	}
+
+	debug_outln_info(FPSTR(DBG_TXT_SEP));
+	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
+	return s;
+}
+
 /*****************************************************************
  * read HTU21D sensor values                                     *
  *****************************************************************/
@@ -3090,6 +3155,74 @@ static void fetchSensorPMS(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 }
 
+
+/*****************************************************************
+ * parse  Plantronic PM  sensor values  for DEBUG                *
+ *****************************************************************/
+void parsePMSPayloadForDebug(String &pms_data){
+	int start_PMS_P0 = pms_data.indexOf('{');
+	int end_PMS_P0 = pms_data.indexOf('}',start_PMS_P0);
+	String PMS_P0_value = pms_data.substring(start_PMS_P0,end_PMS_P0);
+
+	DynamicJsonDocument P0_doc(1024);
+	deserializeJson(P0_doc,PMS_P0_value);
+  	JsonObject P0_obj = P0_doc.as<JsonObject>();
+	String P0_value = P0_obj["value"];
+
+	int start_PMS_P1 = pms_data.indexOf('{',end_PMS_P0);
+	int end_PMS_P1 = pms_data.indexOf('}',start_PMS_P1);
+	String PMS_P1_value = pms_data.substring(start_PMS_P1,end_PMS_P1);
+	
+	DynamicJsonDocument P1_doc(1024);
+	deserializeJson(P1_doc,PMS_P1_value);
+  	JsonObject P1_obj = P1_doc.as<JsonObject>();
+	String P1_value = P1_obj["value"];
+
+	int start_PMS_P2 = pms_data.indexOf('{',end_PMS_P1);
+	int end_PMS_P2 = pms_data.indexOf('}',start_PMS_P2);
+	String PMS_P2_value = pms_data.substring(start_PMS_P2,end_PMS_P2);
+	
+	DynamicJsonDocument P2_doc(1024);
+	deserializeJson(P2_doc,PMS_P2_value);
+  	JsonObject P2_obj = P2_doc.as<JsonObject>();
+	String P2_value = P2_obj["value"];
+
+	last_value_PMS_P0 = P0_value.toFloat();
+	last_value_PMS_P1 = P1_value.toFloat();
+	last_value_PMS_P2 = P2_value.toFloat();
+
+	debug_outln_info(FPSTR("PM1 (sec.): "), String(last_value_PMS_P0));
+	debug_outln_info(FPSTR("PM2.5 (sec.): "), String(last_value_PMS_P2));
+	debug_outln_info(FPSTR("PM10 (sec.) : "), String(last_value_PMS_P1));
+
+
+}
+
+/*****************************************************************
+ * read Plantronic PM sensor sensor values  from ATMEGA                     *
+ *****************************************************************/
+String fetchSensorPMSFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
+	RESERVE_STRING(s,SMALL_STR);
+
+	if(send_now){
+		atmega328p.println("fetchSensorPMS");
+		delay(WARMUPTIME_SDS_MS + READINGTIME_SDS_MS + 2000);
+		while(atmega328p.available() > 0){
+			String pms_data = atmega328p.readString();
+			if(pms_data.indexOf("PMS")){
+				int last_character = pms_data.lastIndexOf(",");
+				s = pms_data.substring(0,(last_character+1));
+				parsePMSPayloadForDebug(s);
+				//Serial.println(s);
+			}
+		}
+	}
+
+	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
+	return s;
+}
+
 /*****************************************************************
  * read Honeywell PM sensor sensor values                        *
  *****************************************************************/
@@ -3467,6 +3600,99 @@ static void fetchSensorGPS(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), "GPS");
 }
 
+
+/*****************************************************************
+ * parse GPS sensor values for DEBUG                         *
+ *****************************************************************/
+void parseGPSPayloadForDebug(String &gps_data){
+
+	//parse GPS latitude
+	int start_GPS_lat = gps_data.indexOf('{');
+	int end_GPS_lat = gps_data.indexOf('}',start_GPS_lat);
+	String GPS_lat_value = gps_data.substring(start_GPS_lat,end_GPS_lat);
+
+	DynamicJsonDocument Lat_doc(1024);
+	deserializeJson(Lat_doc,GPS_lat_value);
+  	JsonObject Lat_obj = Lat_doc.as<JsonObject>();
+	String Lat_value = Lat_obj["value"];
+
+	//parse GPS longitude
+	int start_GPS_lon = gps_data.indexOf('{',end_GPS_lat);
+	int end_GPS_lon = gps_data.indexOf('}',start_GPS_lon);
+	String GPS_lon_value = gps_data.substring(start_GPS_lon,end_GPS_lon);
+
+	DynamicJsonDocument Lon_doc(1024);
+	deserializeJson(Lon_doc,GPS_lon_value);
+  	JsonObject Lon_obj = Lon_doc.as<JsonObject>();
+	String Lon_value = Lon_obj["value"];
+
+	//parse GPS altitude
+	int start_GPS_alt = gps_data.indexOf('{',end_GPS_lon);
+	int end_GPS_alt = gps_data.indexOf('}',start_GPS_alt);
+	String GPS_alt_value = gps_data.substring(start_GPS_alt,end_GPS_alt);
+
+	DynamicJsonDocument Alt_doc(1024);
+	deserializeJson(Alt_doc,GPS_alt_value);
+  	JsonObject Alt_obj = Alt_doc.as<JsonObject>();
+	String Alt_value = Alt_obj["value"];
+
+	//parse GPS date
+	int start_GPS_date = gps_data.indexOf('{',end_GPS_alt);
+	int end_GPS_date= gps_data.indexOf('}',start_GPS_date);
+	String GPS_date_value = gps_data.substring(start_GPS_date,end_GPS_date);
+
+	DynamicJsonDocument Date_doc(1024);
+	deserializeJson(Date_doc,GPS_date_value);
+  	JsonObject Date_obj = Date_doc.as<JsonObject>();
+	String Date_value = Date_obj["value"];
+
+	//parse GPS time
+	int start_GPS_time = gps_data.indexOf('{',end_GPS_date);
+	int end_GPS_time= gps_data.indexOf('}',start_GPS_time);
+	String GPS_time_value = gps_data.substring(start_GPS_time,end_GPS_time);
+
+	DynamicJsonDocument Time_doc(1024);
+	deserializeJson(Time_doc,GPS_time_value);
+  	JsonObject Time_obj = Time_doc.as<JsonObject>();
+	String Time_value = Time_obj["value"];
+
+	last_value_GPS_lat = Lat_value.toFloat();
+	last_value_GPS_lon = Lon_value.toFloat();
+	last_value_GPS_alt = Alt_value.toFloat();
+	last_value_GPS_date = Date_value;
+	last_value_GPS_time = Time_value;
+	
+	debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
+	debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
+	debug_outln_info(F("Date: "), last_value_GPS_date);
+	debug_outln_info(F("Time "), last_value_GPS_time);
+}
+
+
+/*****************************************************************
+ * read GPS sensor values from ATMEGA                            *
+ *****************************************************************/
+String fetchSensorGPSFromAtmega(){
+	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), "GPS");
+	RESERVE_STRING(s,SMALL_STR);
+
+	//request GPS values from atmega328p
+	atmega328p.println("fetchSensorGPS");
+	delay(3000);
+	while(atmega328p.available() > 0){
+		String gps_data = atmega328p.readString();
+		if(gps_data.indexOf("GPS")){
+			int last_character = gps_data.lastIndexOf(",");
+			s = gps_data.substring(0,(last_character+1));
+			parseGPSPayloadForDebug(s);
+			//Serial.println(s);
+		}
+	}
+
+	debug_outln_info(FPSTR(DBG_TXT_SEP));
+	return s;
+}
+
 /****************************************************************
  * INITIALIZE SPH0645 MICROPHONE
  * **************************************************************/
@@ -3525,7 +3751,7 @@ void init_RTC()
 	{
 		// sets time to the date this sketch was compiled
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-		// Set explicit time for example 19th March 2020 at 12 noon.
+		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
 	}
 }
@@ -4381,7 +4607,9 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		init_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
+
 	}
 
 	return sum_send_time;
@@ -4392,7 +4620,8 @@ static unsigned long sendDataToOptionalApis(const String &data) {
  *****************************************************************/
 
 void setup(void) {
-	Serial.begin(9600);					// Output to Serial at 9600 baud
+	Serial.begin(9600);	// Output to Serial at 9600 baud
+	atmega328p.begin(9600, SWSERIAL_8N1,ATMEGA_TX,ATMEGA_RX,false,256);
 	
 #if defined(ESP8266)
 	serialSDS.begin(9600, SWSERIAL_8N1, PM_SERIAL_RX, PM_SERIAL_TX);
@@ -4583,7 +4812,13 @@ void loop(void) {
 		}
 
 		if (cfg::pms_read) {
-			fetchSensorPMS(result_PMS);
+			if(readPMSFromAtmega){
+				result_PMS = fetchSensorPMSFromAtmega();
+			}
+			else{
+				fetchSensorPMS(result_PMS);
+			}
+			
 		}
 
 		if (cfg::hpm_read) {
@@ -4599,7 +4834,13 @@ void loop(void) {
 
 		if ((msSince(starttime_GPS) > SAMPLETIME_GPS_MS) || send_now) {
 			// getting GPS coordinates
-			fetchSensorGPS(result_GPS);
+			if(readGPSFromAtmega){
+				result_GPS = fetchSensorGPSFromAtmega();
+			}
+			else{
+				fetchSensorGPS(result_GPS);
+			}
+			
 			starttime_GPS = act_milli;
 		}
 	}
@@ -4655,7 +4896,12 @@ void loop(void) {
 		}
 		if (cfg::dht_read) {
 			// getting temperature and humidity (optional)
-			fetchSensorDHT(result);
+			if(readDHTFromAtmega){
+				result = fetchSensorDHTFromAtmega();
+			}
+			else{
+				fetchSensorDHT(result);
+			}
 			data += result;
       		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
