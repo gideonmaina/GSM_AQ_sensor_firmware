@@ -523,6 +523,7 @@ double last_value_GPS_lon = -200.0;
 double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
+String last_value_GPS_timestamp;
 String timestamp;
 String PMS_send_time;
 String mic_send_time;
@@ -3558,15 +3559,42 @@ static void fetchSensorGPS(String& s) {
 			snprintf_P(gps_date, sizeof(gps_date), PSTR("%02d/%02d/%04d"),
 					gps.date.month(), gps.date.day(), gps.date.year());
 			last_value_GPS_date = gps_date;
+			last_value_GPS_timestamp = gps_date;
 		} else {
 			debug_outln_verbose(F("Date INVALID"));
 		}
-		if (gps.time.isValid()) {
-			char gps_time[20];
-			snprintf_P(gps_time, sizeof(gps_time), PSTR("%02d:%02d:%02d.%02d"),
-				gps.time.hour(), gps.time.minute(), gps.time.second(), gps.time.centisecond());
+		if (gps.time.isValid())
+		{
+			String gps_time;
+			gps_time = "";
+			if (gps.time.hour() < 10)
+			{
+				gps_time += "0";
+			}
+			gps_time += String(gps.time.hour());
+			gps_time += ":";
+			if (gps.time.minute() < 10)
+			{
+				gps_time += "0";
+			}
+			gps_time += String(gps.time.minute());
+			gps_time += ":";
+			if (gps.time.second() < 10)
+			{
+				gps_time += "0";
+			}
+			gps_time += String(gps.time.second());
+			gps_time += ".";
+			if (gps.time.centisecond() < 10)
+			{
+				gps_time += "0";
+			}
+			gps_time += String(gps.time.centisecond());
 			last_value_GPS_time = gps_time;
-		} else {
+			last_value_GPS_timestamp += "T" + gps_time;
+		}
+		else
+		{
 			debug_outln_verbose(F("Time: INVALID"));
 		}
 	}
@@ -3586,8 +3614,7 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
 		add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
-		add_Value2Json(s, F("GPS_date"), last_value_GPS_date);
-		add_Value2Json(s, F("GPS_time"), last_value_GPS_time);
+		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		add_Value2Json(s, F("timestamp"), GPS_send_time);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 	}
