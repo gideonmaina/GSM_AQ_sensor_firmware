@@ -3677,6 +3677,17 @@ void init_SPH0645(){
 	i2s_init();
 }
 
+/****************************************************************
+ * RE-INITIALIZE SPH0645 MICROPHONE
+ * **************************************************************/
+void Reinit_SPH0645(){
+	pinMode(I2SI_WS, OUTPUT);
+	pinMode(I2SI_BCK, OUTPUT);
+	pinMode(I2SI_DATA, INPUT);
+
+	i2s_init();
+}
+
 
 /****************************************************************
  * OBTAIN SPH0645 MIC VALUE
@@ -4574,7 +4585,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
 		sensor_readings.print(data); // Write sensors data to opened file
 		sensor_readings.println("/t");	// add '/t' delimeter for payloads
-		init_SPH0645(); //Give SPI bus pins back to the MIC
+		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
 
 	}
