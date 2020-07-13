@@ -2685,6 +2685,9 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
+			pcf8575.digitalWrite(P5, HIGH);
+			delay(3000);
+			pcf8575.digitalWrite(P5, LOW);
 			break;
 		}
 	}
@@ -3198,6 +3201,9 @@ String fetchSensorPMSFromAtmega(){
 				//Serial.println(s);
 			}
 		}
+		pcf8575.digitalWrite(P4, HIGH);
+		delay(3000);
+		pcf8575.digitalWrite(P4, LOW);
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
@@ -3564,6 +3570,10 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_date"), last_value_GPS_date);
 		add_Value2Json(s, F("GPS_time"), last_value_GPS_time);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
+
+		pcf8575.digitalWrite(P0, HIGH);
+		delay(3000);
+		pcf8575.digitalWrite(P0, LOW);
 	}
 
 	if ( count_sends > 0 && gps.charsProcessed() < 10) {
@@ -3667,6 +3677,18 @@ String fetchSensorGPSFromAtmega(){
 	return s;
 }
 
+/*****************************************************************
+ * INITIALIZE PCF8575										     *
+ *****************************************************************/
+void init_PCF8575() {
+	pcf8575.pinMode(P0, OUTPUT);
+	pcf8575.pinMode(P1, OUTPUT);
+	pcf8575.pinMode(P2, OUTPUT);
+	pcf8575.pinMode(P3, OUTPUT);
+	pcf8575.pinMode(P4, OUTPUT);
+	pcf8575.pinMode(P5, OUTPUT);
+}
+
 /****************************************************************
  * INITIALIZE SPH0645 MICROPHONE
  * **************************************************************/
@@ -3703,6 +3725,9 @@ void fetchSensorSPH0645(String& s){
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+	  pcf8575.digitalWrite(P3, HIGH);
+	  delay(3000);
+	  pcf8575.digitalWrite(P3, LOW);
   }
 
 }
@@ -4580,6 +4605,9 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
 
+		pcf8575.digitalWrite(P1, HIGH);
+		delay(3000);
+		pcf8575.digitalWrite(P1, LOW);
 	}
 
 	return sum_send_time;
