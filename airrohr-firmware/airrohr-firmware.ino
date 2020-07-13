@@ -102,7 +102,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include "./DHT.h"
-#include "./PCF8574.h"
+#include <PCF8575.h>
 #include <RTClib.h>
 #include <SD.h>
 #include <SPI.h>
@@ -361,6 +361,11 @@ SoftwareSerial atmega328p;
  * DHT declaration                                               *
  *****************************************************************/
 DHT dht(ONEWIRE_PIN, DHT_TYPE);
+
+/*****************************************************************
+ * PCF8575 declaration                                           *
+ *****************************************************************/
+PCF8575 pcf8575(0x20);
 
 /*****************************************************************
  * HTU21D declaration                                            *
