@@ -2567,7 +2567,11 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "]}";
+		data_CFA += "], \"timestamp\":";
+		data_CFA += "\"";
+		data_CFA += timestamp;
+		data_CFA += "\"";
+		data_CFA += "}";
 		sensor_readings.print(data_CFA);
 		sensor_readings.print(", ");
 		sensor_readings.print(pin);
@@ -3102,6 +3106,7 @@ static void fetchSensorPMS(String& s) {
 						debug_outln_verbose(F("PM1 (sec.): "), String(pm1_serial));
 						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
 						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
+						debug_outln_verbose(F("Timestamp: "), String(PMS_send_time));
 						pms_val_count++;
 					}
 					len = 0;
@@ -3137,7 +3142,6 @@ static void fetchSensorPMS(String& s) {
 			add_Value2Json(s, F("PMS_P0"), F("PM1:   "), last_value_PMS_P0);
 			add_Value2Json(s, F("PMS_P1"), F("PM10:  "), last_value_PMS_P1);
 			add_Value2Json(s, F("PMS_P2"), F("PM2.5: "), last_value_PMS_P2);
-			add_Value2Json(s, F("timestamp"), PMS_send_time);
 			debug_outln_info(FPSTR(DBG_TXT_SEP));
 		}
 		pms_pm1_sum = 0;
@@ -4623,8 +4627,6 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		sensor_readings.print(data); // Write sensors data to opened file
-		sensor_readings.println("/t");	// add '/t' delimeter for payloads
 		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
 
