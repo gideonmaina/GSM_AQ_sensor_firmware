@@ -1492,6 +1492,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
+	add_form_checkbox_sensor(Config_sph0645_read, FPSTR(INTL_SPH0645));
 	add_form_checkbox_sensor(Config_dht_read, FPSTR(INTL_DHT22));
 	add_form_checkbox_sensor(Config_htu21d_read, FPSTR(INTL_HTU21D));
 	add_form_checkbox_sensor(Config_bmx280_read, FPSTR(INTL_BMX280));
@@ -1621,6 +1622,7 @@ static void webserver_config_send_body_post(String& page_content) {
 
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Sensor.Community"), send2dusti);
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Madavi"), send2madavi);
+	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SPH0645), sph0645_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DHT22), dht_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_HTU21D), htu21d_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SDS011), sds_read);
@@ -3709,6 +3711,17 @@ void init_SPH0645(){
 	i2s_init();
 }
 
+/****************************************************************
+ * RE-INITIALIZE SPH0645 MICROPHONE
+ * **************************************************************/
+void Reinit_SPH0645(){
+	pinMode(I2SI_WS, OUTPUT);
+	pinMode(I2SI_BCK, OUTPUT);
+	pinMode(I2SI_DATA, INPUT);
+
+	i2s_init();
+}
+
 
 /****************************************************************
  * OBTAIN SPH0645 MIC VALUE
@@ -4610,7 +4623,9 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		init_SPH0645(); //Give SPI bus pins back to the MIC
+		sensor_readings.print(data); // Write sensors data to opened file
+		sensor_readings.println("/t");	// add '/t' delimeter for payloads
+		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
 
 	}
