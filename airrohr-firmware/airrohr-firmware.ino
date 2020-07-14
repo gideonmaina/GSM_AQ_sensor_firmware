@@ -530,6 +530,7 @@ String last_value_GPS_date;
 String last_value_GPS_time;
 String last_data_string;
 int last_signal_strength;
+int switchState = 0;
 bool readGPSFromAtmega = true;
 
 bool readDHTFromAtmega = true;
@@ -3687,6 +3688,7 @@ void init_PCF8575() {
 	pcf8575.pinMode(P3, OUTPUT);
 	pcf8575.pinMode(P4, OUTPUT);
 	pcf8575.pinMode(P5, OUTPUT);
+	pcf8575.pinMode(P10, INPUT);
 }
 
 /****************************************************************
@@ -4594,20 +4596,32 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		send_csv(data);
 	}
 
-	if (cfg::send2sd)
-	{
-		init_SD();
-		DateTime now = rtc.now();
-		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		sensor_readings.print(data); // Write sensors data to opened file
-		sensor_readings.println("/t");	// add '/t' delimeter for payloads
-		init_SPH0645(); //Give SPI bus pins back to the MIC
-		delay(5000);
+/*****************************************************************
+ * Log data to SD                                                *
+ *****************************************************************/
+switchState = digitalRead(P10);
 
-		pcf8575.digitalWrite(P1, HIGH);
-		delay(3000);
-		pcf8575.digitalWrite(P1, LOW);
+	if (switchState == HIGH) {
+
+		if (cfg::send2sd)
+		{
+			init_SD();
+			DateTime now = rtc.now();
+			debug_outln_info(F("## Logging to SD: "));
+			sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+			sensor_readings.print(data); // Write sensors data to opened file
+			sensor_readings.println("/t");	// add '/t' delimeter for payloads
+			init_SPH0645(); //Give SPI bus pins back to the MIC
+			delay(5000);
+
+			pcf8575.digitalWrite(P1, HIGH);
+			delay(3000);
+			pcf8575.digitalWrite(P1, LOW);
+		}
+		else
+		{
+			pcf8575.digitalWrite(P1, LOW);
+		}
 	}
 
 	return sum_send_time;

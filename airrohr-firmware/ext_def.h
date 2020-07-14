@@ -163,6 +163,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define MIC_LED P3
 #define PMS_LED P4
 #define DHT_LED P5
+#define LOGGER_SWITCH P10
 #endif
 
 
