@@ -3201,6 +3201,11 @@ String fetchSensorPMSFromAtmega(){
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
 	RESERVE_STRING(s,SMALL_STR);
 
+	char buf[40];
+	DateTime now = rtc.now();
+	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf;
+
 	if(send_now){
 		atmega328p.println("fetchSensorPMS");
 		delay(WARMUPTIME_SDS_MS + READINGTIME_SDS_MS + 2000);
@@ -3214,11 +3219,6 @@ String fetchSensorPMSFromAtmega(){
 			}
 		}
 	}
-
-	char buf[40];
-	DateTime now = rtc.now();
-	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf;
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 	return s;
