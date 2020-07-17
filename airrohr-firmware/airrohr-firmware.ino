@@ -525,10 +525,6 @@ String last_value_GPS_date;
 String last_value_GPS_time;
 String last_value_GPS_timestamp;
 String timestamp;
-String PMS_send_time;
-String mic_send_time;
-String DHT_send_time;
-String GPS_send_time;
 String last_data_string;
 int last_signal_strength;
 bool readGPSFromAtmega = true;
@@ -2572,6 +2568,7 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += timestamp;
 		data_CFA += "\"";
 		data_CFA += "}";
+		Serial.println(data_CFA);
 		sensor_readings.print(data_CFA);
 		sensor_readings.print(", ");
 		sensor_readings.print(pin);
@@ -2677,12 +2674,6 @@ static void send_csv(const String& data) {
 static void fetchSensorDHT(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DHT22));
 
-	// Obtain DHT_time from RTC
-	char buf1[20];
-	DateTime now = rtc.now();
-	sprintf(buf1, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	DHT_send_time = buf1;
-
 	// Check if valid number if non NaN (not a number) will be send.
 	last_value_DHT_T = -128;
 	last_value_DHT_H = -1;
@@ -2704,7 +2695,6 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
-			add_Value2Json(s, F("timestamp"), DHT_send_time);
 			break;
 		}
 	}
@@ -2763,6 +2753,12 @@ String fetchSensorDHTFromAtmega(){
 			//Serial.println(s);
 		}
 	}
+
+	// Obtain DHT_time from RTC
+	char buf1[40];
+	DateTime now = rtc.now();
+	sprintf(buf1, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf1;
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -2992,7 +2988,6 @@ static void fetchSensorSDS(String& s) {
  *****************************************************************/
 static void fetchSensorPMS(String& s) {
 	char buffer;
-	char buf[20];
 	int value;
 	int len = 0;
 	int pm1_serial = 0;
@@ -3106,7 +3101,6 @@ static void fetchSensorPMS(String& s) {
 						debug_outln_verbose(F("PM1 (sec.): "), String(pm1_serial));
 						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
 						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
-						debug_outln_verbose(F("Timestamp: "), String(PMS_send_time));
 						pms_val_count++;
 					}
 					len = 0;
@@ -3120,11 +3114,6 @@ static void fetchSensorPMS(String& s) {
 			yield();
 		}
 	}
-
-	DateTime now = rtc.now();
-	sprintf(buf, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	PMS_send_time = buf;
-
 	if (send_now) {
 		last_value_PMS_P0 = -1;
 		last_value_PMS_P1 = -1;
@@ -3225,6 +3214,11 @@ String fetchSensorPMSFromAtmega(){
 			}
 		}
 	}
+
+	char buf[40];
+	DateTime now = rtc.now();
+	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf;
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 	return s;
@@ -3582,10 +3576,10 @@ static void fetchSensorGPS(String& s) {
 	}
 
 	// Obtain GPS send_time from RTC
-	char buf3[20];
+	char buf3[40];
 	DateTime now = rtc.now();
-	sprintf(buf3, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	GPS_send_time = buf3;
+	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf3;
 
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
@@ -3597,7 +3591,6 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
 		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
-		add_Value2Json(s, F("timestamp"), GPS_send_time);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 	}
 
@@ -3747,15 +3740,14 @@ void fetchSensorSPH0645(String& s){
   }
 
 //	Obtain SPH0645 send_time from RTC
-  char buf2[20];
+  char buf2[40];
   DateTime now = rtc.now();
   sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  mic_send_time = buf2;
+  timestamp = buf2;
 
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
-	  add_Value2Json(s, F("timestamp"), mic_send_time);
   }
 
 }
