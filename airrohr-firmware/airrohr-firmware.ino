@@ -523,6 +523,8 @@ double last_value_GPS_lon = -200.0;
 double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
+String last_value_GPS_timestamp;
+String timestamp;
 String last_data_string;
 int last_signal_strength;
 bool readGPSFromAtmega = true;
@@ -2561,7 +2563,18 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "]}";
+		data_CFA += "], \"timestamp\":";
+		data_CFA += "\"";
+		data_CFA += timestamp;
+		data_CFA += "\"";
+		data_CFA += "}";
+		Serial.println(data_CFA);
+		sensor_readings.print(data_CFA);
+		sensor_readings.print(", ");
+		sensor_readings.print(pin);
+		sensor_readings.print(", ");
+		sensor_readings.print(sensorname);
+		sensor_readings.println("/t");
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
 
@@ -2740,6 +2753,12 @@ String fetchSensorDHTFromAtmega(){
 			//Serial.println(s);
 		}
 	}
+
+	// Obtain DHT_time from RTC
+	char buf1[40];
+	DateTime now = rtc.now();
+	sprintf(buf1, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf1;
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3095,7 +3114,6 @@ static void fetchSensorPMS(String& s) {
 			yield();
 		}
 	}
-
 	if (send_now) {
 		last_value_PMS_P0 = -1;
 		last_value_PMS_P1 = -1;
@@ -3182,6 +3200,11 @@ void parsePMSPayloadForDebug(String &pms_data){
 String fetchSensorPMSFromAtmega(){
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
 	RESERVE_STRING(s,SMALL_STR);
+
+	char buf[40];
+	DateTime now = rtc.now();
+	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf;
 
 	if(send_now){
 		atmega328p.println("fetchSensorPMS");
@@ -3536,18 +3559,27 @@ static void fetchSensorGPS(String& s) {
 			snprintf_P(gps_date, sizeof(gps_date), PSTR("%02d/%02d/%04d"),
 					gps.date.month(), gps.date.day(), gps.date.year());
 			last_value_GPS_date = gps_date;
+			last_value_GPS_timestamp = gps_date;
 		} else {
 			debug_outln_verbose(F("Date INVALID"));
 		}
 		if (gps.time.isValid()) {
 			char gps_time[20];
 			snprintf_P(gps_time, sizeof(gps_time), PSTR("%02d:%02d:%02d.%02d"),
-				gps.time.hour(), gps.time.minute(), gps.time.second(), gps.time.centisecond());
+					gps.time.hour(), gps.time.minute(), gps.time.second(), gps.time.centisecond());
 			last_value_GPS_time = gps_time;
+			last_value_GPS_timestamp += "T";
+			last_value_GPS_timestamp += gps_time;
 		} else {
 			debug_outln_verbose(F("Time: INVALID"));
 		}
 	}
+
+	// Obtain GPS send_time from RTC
+	char buf3[40];
+	DateTime now = rtc.now();
+	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf3;
 
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
@@ -3558,8 +3590,7 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
 		add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
-		add_Value2Json(s, F("GPS_date"), last_value_GPS_date);
-		add_Value2Json(s, F("GPS_time"), last_value_GPS_time);
+		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 	}
 
@@ -3707,6 +3738,12 @@ void fetchSensorSPH0645(String& s){
     }
     rx_buf_flag = false;
   }
+
+//	Obtain SPH0645 send_time from RTC
+  char buf2[40];
+  DateTime now = rtc.now();
+  sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+  timestamp = buf2;
 
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
@@ -4580,11 +4617,8 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 	if (cfg::send2sd)
 	{
 		init_SD();
-		DateTime now = rtc.now();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		sensor_readings.print(data); // Write sensors data to opened file
-		sensor_readings.println("/t");	// add '/t' delimeter for payloads
 		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 		delay(5000);
 
