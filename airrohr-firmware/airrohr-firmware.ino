@@ -2769,6 +2769,10 @@ String fetchSensorDHTFromAtmega(){
 	sprintf(buf1, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
 	timestamp = buf1;
 
+	pcf8575.digitalWrite(P2, HIGH);	//turn RTC status led on for 3 seconds
+	delay(3000);
+	pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
+
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
 	return s;
