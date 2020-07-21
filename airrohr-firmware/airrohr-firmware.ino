@@ -2700,9 +2700,6 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
-			pcf8575.digitalWrite(P5, HIGH);	// turn DHT status LED on for 3 seconds
-			delay(3000);
-			pcf8575.digitalWrite(P5, LOW);	// turn DHT status led off
 			break;
 		}
 	}
@@ -2761,6 +2758,10 @@ String fetchSensorDHTFromAtmega(){
 			//Serial.println(s);
 		}
 	}
+
+	pcf8575.digitalWrite(P5, HIGH); // turn DHT status LED on for 3 seconds
+	delay(3000);
+	pcf8575.digitalWrite(P5, LOW); // turn DHT status led off
 
 	// Obtain DHT_time from RTC
 	char buf1[40];
@@ -3603,15 +3604,6 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 
-		// Obtain GPS send_time from RTC
-		char buf3[40];
-		DateTime now = rtc.now();
-		sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-		timestamp = buf3;
-
-		pcf8575.digitalWrite(P0, HIGH);	// turn GPS status led on for 3 seconds
-		delay(3000);
-		pcf8575.digitalWrite(P0, LOW);	// turn GPS status led off
 	}
 
 	if ( count_sends > 0 && gps.charsProcessed() < 10) {
@@ -3710,6 +3702,16 @@ String fetchSensorGPSFromAtmega(){
 			//Serial.println(s);
 		}
 	}
+
+	// Obtain GPS send_time from RTC
+	char buf3[40];
+	DateTime now = rtc.now();
+	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf3;
+
+	pcf8575.digitalWrite(P0, HIGH); // turn GPS status led on for 3 seconds
+	delay(3000);
+	pcf8575.digitalWrite(P0, LOW); // turn GPS status led off
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	return s;
