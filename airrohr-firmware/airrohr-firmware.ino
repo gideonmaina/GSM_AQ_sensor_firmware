@@ -2702,9 +2702,9 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
-			pcf8575.digitalWrite(P5, HIGH);
+			pcf8575.digitalWrite(P5, HIGH);	// turn DHT status LED on for 3 seconds
 			delay(3000);
-			pcf8575.digitalWrite(P5, LOW);
+			pcf8575.digitalWrite(P5, LOW);	// turn DHT status led off
 			break;
 		}
 	}
@@ -3232,9 +3232,9 @@ String fetchSensorPMSFromAtmega(){
 				//Serial.println(s);
 			}
 		}
-		pcf8575.digitalWrite(P4, HIGH);
+		pcf8575.digitalWrite(P4, HIGH);	// turn PMS status led on for 3 seconds
 		delay(3000);
-		pcf8575.digitalWrite(P4, LOW);
+		pcf8575.digitalWrite(P4, LOW);	// turn PMS status led off
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
@@ -3610,9 +3610,9 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
 
-		pcf8575.digitalWrite(P0, HIGH);
+		pcf8575.digitalWrite(P0, HIGH);	// turn GPS status led on for 3 seconds
 		delay(3000);
-		pcf8575.digitalWrite(P0, LOW);
+		pcf8575.digitalWrite(P0, LOW);	// turn GPS status led off
 	}
 
 	if ( count_sends > 0 && gps.charsProcessed() < 10) {
@@ -3785,9 +3785,9 @@ void fetchSensorSPH0645(String& s){
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
-	  pcf8575.digitalWrite(P3, HIGH);
+	  pcf8575.digitalWrite(P3, HIGH);	// turn mic status led on for 3 seconds
 	  delay(3000);
-	  pcf8575.digitalWrite(P3, LOW);
+	  pcf8575.digitalWrite(P3, LOW);	// turn mic status led off
   }
 
 }
@@ -3808,9 +3808,9 @@ void init_RTC()
 	}
 	else
 	{
-		pcf8575.digitalWrite(P2, HIGH);
+		pcf8575.digitalWrite(P2, HIGH);	// turn RTC status led on for 3 seconds
 		delay(3000);
-		pcf8575.digitalWrite(P2, LOW);
+		pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
 	}
 	
 }
@@ -4665,7 +4665,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
  * Log data to SD                                                *
  *****************************************************************/
 switchState = digitalRead(P10);
-
+// Read state of the log switch
 	if (switchState == HIGH) {
 
 		if (cfg::send2sd)
@@ -4677,13 +4677,13 @@ switchState = digitalRead(P10);
 			Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 			delay(5000);
 
-			pcf8575.digitalWrite(P1, HIGH);
+			pcf8575.digitalWrite(P1, HIGH);	// turn logger led on for 3 seconds
 			delay(3000);
-			pcf8575.digitalWrite(P1, LOW);
+			pcf8575.digitalWrite(P1, LOW);	// turn logger led off
 		}
 		else
 		{
-			pcf8575.digitalWrite(P1, LOW);
+			pcf8575.digitalWrite(P1, LOW);	// logger led remains off
 		}
 	}
 
