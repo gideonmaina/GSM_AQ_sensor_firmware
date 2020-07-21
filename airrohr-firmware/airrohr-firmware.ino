@@ -2574,12 +2574,13 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += timestamp;
 		data_CFA += "\"";
 		data_CFA += "}";
-		Serial.println(data_CFA);
 		sensor_readings.print(data_CFA);
 		sensor_readings.print(", ");
 		sensor_readings.print(pin);
 		sensor_readings.print(", ");
 		sensor_readings.print(sensorname);
+		sensor_readings.print(", ");
+		sensor_readings.print(timestamp);
 		sensor_readings.println("/t");
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
