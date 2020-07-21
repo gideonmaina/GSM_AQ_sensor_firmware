@@ -3225,7 +3225,7 @@ String fetchSensorPMSFromAtmega(){
 				//Serial.println(s);
 			}
 		}
-		
+
 		char buf[40];
 		DateTime now = rtc.now();
 		sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
@@ -3591,12 +3591,6 @@ static void fetchSensorGPS(String& s) {
 		}
 	}
 
-	// Obtain GPS send_time from RTC
-	char buf3[40];
-	DateTime now = rtc.now();
-	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf3;
-
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
 		debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
@@ -3608,6 +3602,12 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
 		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
+
+		// Obtain GPS send_time from RTC
+		char buf3[40];
+		DateTime now = rtc.now();
+		sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+		timestamp = buf3;
 
 		pcf8575.digitalWrite(P0, HIGH);	// turn GPS status led on for 3 seconds
 		delay(3000);
