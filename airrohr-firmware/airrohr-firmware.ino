@@ -3805,10 +3805,14 @@ void init_RTC()
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
-		 pcf8575.digitalWrite(P2, HIGH);
-		 delay(3000);
-		 pcf8575.digitalWrite(P2, LOW);
 	}
+	else
+	{
+		pcf8575.digitalWrite(P2, HIGH);
+		delay(3000);
+		pcf8575.digitalWrite(P2, LOW);
+	}
+	
 }
 
 /*****************************************************************
