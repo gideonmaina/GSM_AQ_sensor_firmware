@@ -4670,8 +4670,6 @@ switchState = digitalRead(P10);
 			DateTime now = rtc.now();
 			debug_outln_info(F("## Logging to SD: "));
 			sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-			sensor_readings.print(data); // Write sensors data to opened file
-			sensor_readings.println("/t");	// add '/t' delimeter for payloads
 			Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 			delay(5000);
 
