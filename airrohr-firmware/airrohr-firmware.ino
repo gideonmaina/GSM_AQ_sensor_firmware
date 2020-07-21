@@ -4685,11 +4685,6 @@ switchState = digitalRead(P10);
 		}
 	}
 
-	else
-	{
-		(!cfg::send2sd);
-	}
-
 	return sum_send_time;
 }
 
