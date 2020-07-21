@@ -228,6 +228,7 @@ namespace cfg {
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
 	bool rtc_read = RTC_READ;
+	bool sd_read = SD_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -4754,6 +4755,11 @@ void setup(void) {
 #endif
 		debug_outln_info(F("Read GPS..."));
 		disable_unneeded_nmea();
+	}
+
+	switchState = digitalRead(P10);
+	if (switchState == HIGH) {
+		init_SD();
 	}
 
 	powerOnTestSensors();
