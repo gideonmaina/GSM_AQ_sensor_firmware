@@ -2764,12 +2764,7 @@ String fetchSensorDHTFromAtmega(){
 	delay(5000);
 	pcf8575.digitalWrite(P5, LOW); // turn DHT status led off
 
-	// Obtain DHT_time from RTC
-	char buf1[40];
-	DateTime now = rtc.now();
-	sprintf(buf1, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf1;
-
+	obtain_sendTime();
 	pcf8575.digitalWrite(P2, HIGH);	//turn RTC status led on for 3 seconds
 	delay(5000);
 	pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
@@ -3228,12 +3223,8 @@ String fetchSensorPMSFromAtmega(){
 			}
 		}
 
-		char buf[40];
-		DateTime now = rtc.now();
-		sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-		timestamp = buf;
-
-		pcf8575.digitalWrite(P4, HIGH);	// turn PMS status led on for 3 seconds
+		obtain_sendTime();
+		pcf8575.digitalWrite(P4, HIGH); // turn PMS status led on for 3 seconds
 		delay(5000);
 		pcf8575.digitalWrite(P4, LOW);	// turn PMS status led off
 	}
@@ -3704,12 +3695,7 @@ String fetchSensorGPSFromAtmega(){
 		}
 	}
 
-	// Obtain GPS send_time from RTC
-	char buf3[40];
-	DateTime now = rtc.now();
-	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf3;
-
+	obtain_sendTime();
 	pcf8575.digitalWrite(P0, HIGH); // turn GPS status led on for 3 seconds
 	delay(5000);
 	pcf8575.digitalWrite(P0, LOW); // turn GPS status led off
@@ -3778,15 +3764,10 @@ void fetchSensorSPH0645(String& s){
     rx_buf_flag = false;
   }
 
-//	Obtain SPH0645 send_time from RTC
-  char buf2[40];
-  DateTime now = rtc.now();
-  sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  timestamp = buf2;
-
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+	  obtain_sendTime();
 	  pcf8575.digitalWrite(P3, HIGH);	// turn mic status led on for 3 seconds
 	  delay(5000);
 	  pcf8575.digitalWrite(P3, LOW);	// turn mic status led off
@@ -3815,6 +3796,14 @@ void init_RTC()
 		pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
 	}
 	
+}
+
+void obtain_sendTime()
+{
+	char buf[40];
+	DateTime now = rtc.now();
+	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf;
 }
 
 /*****************************************************************
@@ -4697,7 +4686,6 @@ switchState = digitalRead(P10);
 		if (cfg::send2sd)
 		{
 			init_SD();
-			DateTime now = rtc.now();
 			debug_outln_info(F("## Logging to SD: "));
 			sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
 			Reinit_SPH0645(); //Give SPI bus pins back to the MIC
@@ -4890,22 +4878,10 @@ void loop(void) {
 
 
 	if (cfg::rtc_read) {
-		DateTime now = rtc.now();
-		debug_outln_info("The RTC time is: ");
-		Serial.print(now.year(), DEC);
-		Serial.print('/');
-		Serial.print(now.month(), DEC);
-		Serial.print('/');
-		Serial.print(now.day(), DEC);
-		Serial.print(' ');
-		Serial.print(now.hour(), DEC);
-		Serial.print(':');
-		Serial.print(now.minute(), DEC);
-		Serial.print(':');
-		Serial.print(now.second(), DEC);
-		Serial.println();
-		delay(5000);
-  }
+		obtain_sendTime();
+		Serial.println(timestamp);
+		delay(30000);
+	}
   
 	if(cfg::sph0645_read){
 		fetchSensorSPH0645(result_SPH0645);
