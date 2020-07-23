@@ -2760,14 +2760,14 @@ String fetchSensorDHTFromAtmega(){
 		}
 	}
 
-	pcf8575.digitalWrite(P5, HIGH); // turn DHT status LED on for 3 seconds
+	pcf8575.digitalWrite(DHT_LED, HIGH); // turn DHT status LED on for 3 seconds
 	delay(5000);
-	pcf8575.digitalWrite(P5, LOW); // turn DHT status led off
+	pcf8575.digitalWrite(DHT_LED, LOW); // turn DHT status led off
 
 	obtain_sendTime();
-	pcf8575.digitalWrite(P2, HIGH);	//turn RTC status led on for 3 seconds
+	pcf8575.digitalWrite(RTC_LED, HIGH);	//turn RTC status led on for 3 seconds
 	delay(5000);
-	pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
+	pcf8575.digitalWrite(RTC_LED, LOW);	//turn RTC status led off
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3224,9 +3224,9 @@ String fetchSensorPMSFromAtmega(){
 		}
 
 		obtain_sendTime();
-		pcf8575.digitalWrite(P4, HIGH); // turn PMS status led on for 3 seconds
+		pcf8575.digitalWrite(PMS_LED, HIGH); // turn PMS status led on for 3 seconds
 		delay(5000);
-		pcf8575.digitalWrite(P4, LOW);	// turn PMS status led off
+		pcf8575.digitalWrite(PMS_LED, LOW);	// turn PMS status led off
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
@@ -3696,9 +3696,9 @@ String fetchSensorGPSFromAtmega(){
 	}
 
 	obtain_sendTime();
-	pcf8575.digitalWrite(P0, HIGH); // turn GPS status led on for 3 seconds
+	pcf8575.digitalWrite(GPS_LED, HIGH); // turn GPS status led on for 3 seconds
 	delay(5000);
-	pcf8575.digitalWrite(P0, LOW); // turn GPS status led off
+	pcf8575.digitalWrite(GPS_LED, LOW); // turn GPS status led off
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	return s;
@@ -3711,13 +3711,13 @@ void init_PCF8575() {
 
 	Serial.begin(115200);
 
-	pcf8575.pinMode(P0, OUTPUT);
-	pcf8575.pinMode(P1, OUTPUT);
-	pcf8575.pinMode(P2, OUTPUT);
-	pcf8575.pinMode(P3, OUTPUT);
-	pcf8575.pinMode(P4, OUTPUT);
-	pcf8575.pinMode(P5, OUTPUT);
-	pcf8575.pinMode(P10, INPUT);
+	pcf8575.pinMode(GPS_LED, OUTPUT);
+	pcf8575.pinMode(LOGGER_LED, OUTPUT);
+	pcf8575.pinMode(RTC_LED, OUTPUT);
+	pcf8575.pinMode(MIC_LED, OUTPUT);
+	pcf8575.pinMode(PMS_LED, OUTPUT);
+	pcf8575.pinMode(DHT_LED, OUTPUT);
+	pcf8575.pinMode(LOGGER_SWITCH, INPUT);
 }
 
 /****************************************************************
@@ -3768,9 +3768,9 @@ void fetchSensorSPH0645(String& s){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
 	  obtain_sendTime();
-	  pcf8575.digitalWrite(P3, HIGH);	// turn mic status led on for 3 seconds
+	  pcf8575.digitalWrite(MIC_LED, HIGH);	// turn mic status led on for 3 seconds
 	  delay(5000);
-	  pcf8575.digitalWrite(P3, LOW);	// turn mic status led off
+	  pcf8575.digitalWrite(MIC_LED, LOW);	// turn mic status led off
   }
 
 }
@@ -3791,9 +3791,9 @@ void init_RTC()
 	}
 	else
 	{
-		pcf8575.digitalWrite(P2, HIGH);	// turn RTC status led on for 3 seconds
+		pcf8575.digitalWrite(RTC_LED, HIGH);	// turn RTC status led on for 3 seconds
 		delay(5000);
-		pcf8575.digitalWrite(P2, LOW);	//turn RTC status led off
+		pcf8575.digitalWrite(RTC_LED, LOW);	//turn RTC status led off
 	}
 	
 }
@@ -4445,9 +4445,9 @@ static void powerOnTestSensors() {
 		delay(100);
 		debug_outln_info(F("Stopping PMS..."));
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
-		pcf8575.digitalWrite(P4, HIGH);
+		pcf8575.digitalWrite(PMS_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P4, LOW);
+		pcf8575.digitalWrite(PMS_LED, LOW);
 	}
 
 	if (cfg::hpm_read) {
@@ -4468,18 +4468,18 @@ static void powerOnTestSensors() {
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
-		pcf8575.digitalWrite(P5, HIGH);
+		pcf8575.digitalWrite(DHT_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P5, LOW);
+		pcf8575.digitalWrite(DHT_LED, LOW);
 	}
 
 	if (cfg::rtc_read) {
 		rtc.begin();
 		debug_outln_info(F("Read Time from RTC..."));
 		init_RTC();
-		pcf8575.digitalWrite(P2, HIGH);
+		pcf8575.digitalWrite(RTC_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P2, LOW);
+		pcf8575.digitalWrite(RTC_LED, LOW);
 	}
 
 	if (cfg::htu21d_read) {
@@ -4529,21 +4529,21 @@ static void powerOnTestSensors() {
 	if(cfg::sph0645_read){
 		debug_outln_info(F("Read SPH0645..."));
 		init_SPH0645();
-		pcf8575.digitalWrite(P3, HIGH);
+		pcf8575.digitalWrite(MIC_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P3, LOW);
+		pcf8575.digitalWrite(MIC_LED, LOW);
 	}
 
 	if (cfg::gps_read){
-		pcf8575.digitalWrite(P0, HIGH);
+		pcf8575.digitalWrite(GPS_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P0, LOW);
+		pcf8575.digitalWrite(GPS_LED, LOW);
 	}
 
 	if (cfg::sd_read){
-		pcf8575.digitalWrite(P1, HIGH);
+		pcf8575.digitalWrite(LOGGER_LED, HIGH);
 		delay(2000);
-		pcf8575.digitalWrite(P1, LOW);
+		pcf8575.digitalWrite(LOGGER_LED, LOW);
 	}
 
 }
@@ -4679,7 +4679,7 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 /*****************************************************************
  * Log data to SD                                                *
  *****************************************************************/
-switchState = digitalRead(P10);
+switchState = digitalRead(LOGGER_SWITCH);
 // Read state of the log switch
 	if (switchState == HIGH) {
 
@@ -4691,13 +4691,13 @@ switchState = digitalRead(P10);
 			Reinit_SPH0645(); //Give SPI bus pins back to the MIC
 			delay(5000);
 
-			pcf8575.digitalWrite(P1, HIGH);	// turn logger led on for 3 seconds
+			pcf8575.digitalWrite(LOGGER_LED, HIGH);	// turn logger led on for 3 seconds
 			delay(5000);
-			pcf8575.digitalWrite(P1, LOW);	// turn logger led off
+			pcf8575.digitalWrite(LOGGER_LED, LOW);	// turn logger led off
 		}
 		else
 		{
-			pcf8575.digitalWrite(P1, LOW);	// logger led remains off
+			pcf8575.digitalWrite(LOGGER_LED, LOW);	// logger led remains off
 		}
 	}
 
@@ -4769,7 +4769,7 @@ void setup(void) {
 		disable_unneeded_nmea();
 	}
 
-	switchState = digitalRead(P10);
+	switchState = digitalRead(LOGGER_SWITCH);
 	if (switchState == HIGH) {
 		init_SD();
 	}
