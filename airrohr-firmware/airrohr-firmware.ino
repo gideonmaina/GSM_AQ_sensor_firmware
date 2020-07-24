@@ -3734,6 +3734,8 @@ void fetchSensorSPH0645(String& s){
 		  }
 	 else{
 		 debug_outln_error(F("No Mic Value available"));
+		 Reinit_SPH0645(); //Give SPI bus pins back to the MIC
+		 delay(1000);
 	 }
     }
     rx_buf_flag = false;
@@ -4556,6 +4558,18 @@ static void setupNetworkTime() {
 	configTime(0, 0, ntpServer1, ntpServer2, ntpServer3);
 }
 
+/**************************************************************
+ * OPEN SD-CARD FILE FOR LOGGING
+ * *************************************************************/
+void openLoggingFile(){
+	if (cfg::send2sd){
+		init_SD();
+		debug_outln_info(F("## Logging to SD: "));
+		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		delay(5000);
+	}
+}
+
 static unsigned long sendDataToOptionalApis(const String &data) {
 	unsigned long sum_send_time = 0;
 
@@ -4612,16 +4626,6 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 	if (cfg::send2csv) {
 		debug_outln_info(F("## Sending as csv: "));
 		send_csv(data);
-	}
-
-	if (cfg::send2sd)
-	{
-		init_SD();
-		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
-		delay(5000);
-
 	}
 
 	return sum_send_time;
@@ -4871,6 +4875,9 @@ void loop(void) {
 		RESERVE_STRING(data, LARGE_STR);
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
+
+		//Open SD-card file for logging
+		openLoggingFile(); 
 
 		if(cfg::sph0645_read){
 			data += result_SPH0645;
