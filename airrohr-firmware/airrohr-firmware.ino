@@ -1463,6 +1463,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(INTL_MORE_SETTINGS);
 	page_content += FPSTR(WEB_B_BR);
 
+	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
 	add_form_checkbox(Config_has_display, FPSTR(INTL_DISPLAY));
 	add_form_checkbox(Config_has_sh1106, FPSTR(INTL_SH1106));
 	add_form_checkbox(Config_has_flipped_display, FPSTR(INTL_FLIP_DISPLAY));
@@ -1639,6 +1640,7 @@ static void webserver_config_send_body_post(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
+	add_line_value_bool(page_content, FPSTR(INTL_ENABLE_WIFI), wifi_enabled);
 	add_line_value_bool(page_content, FPSTR(INTL_DISPLAY), has_display);
 	add_line_value_bool(page_content, FPSTR(INTL_SH1106), has_sh1106);
 	add_line_value_bool(page_content, FPSTR(INTL_FLIP_DISPLAY), has_flipped_display);
@@ -4423,9 +4425,9 @@ static void powerOnTestSensors() {
 		debug_outln_info(F("WIFI ENABLED..."));
 	}
 	else{
-		debug_outln_info(F("WIFI ENABLED..."));
+		debug_outln_info(F("WIFI DISABLED..."));
 	}
-	
+
 	if (cfg::ppd_read) {
 		pinMode(PPD_PIN_PM1, INPUT_PULLUP);					// Listen at the designated PIN
 		pinMode(PPD_PIN_PM2, INPUT_PULLUP);					// Listen at the designated PIN
