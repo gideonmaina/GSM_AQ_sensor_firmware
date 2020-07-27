@@ -244,6 +244,8 @@ namespace cfg {
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
 
+	bool wifi_enabled = WIFI_ENABLED;
+
 	// (in)active displays
 	bool has_display = HAS_DISPLAY;											// OLED with SSD1306 and I2C
 	bool has_sh1106 = HAS_SH1106;
@@ -2570,7 +2572,7 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 		data_SD += "\"";
 		data_SD += "}";
 		Serial.println(data_SD);
-		
+
 		sensor_readings.print(data_SD);
 		sensor_readings.print(", ");
 		sensor_readings.print(pin);
