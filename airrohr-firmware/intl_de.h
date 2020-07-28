@@ -37,6 +37,7 @@ const char INTL_DNMS_CORRECTION[] PROGMEM ="Korrekturwert&nbsp;in&nbsp;dB(A)";
 const char INTL_NEO6M[] PROGMEM = "GPS (NEO 6M)";
 const char INTL_BASICAUTH[] PROGMEM = "BasicAuth aktivieren";
 
+const char INTL_ENABLE_WIFI[] PROGMEM = "WIFI ENABLED";
 const char INTL_FS_WIFI_DESCRIPTION[] PROGMEM = "Sensor WLAN Name im Konfigurationsmodus";
 const char INTL_FS_WIFI_NAME[] PROGMEM = "Name";
 const char INTL_MORE_SETTINGS[] PROGMEM ="Weitere Einstellungen";

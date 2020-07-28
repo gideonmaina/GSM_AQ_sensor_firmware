@@ -228,6 +228,9 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
+// Device is WiFi Enabled
+#define WIFI_ENABLED 1
+
 //SPH0645 MEMS Microphone
 #define SPHO645_READ  1
 #define SPH0645_API_PIN 15

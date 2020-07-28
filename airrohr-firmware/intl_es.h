@@ -37,6 +37,7 @@ const char INTL_DNMS_CORRECTION[] PROGMEM = "corrección en dB (A)";
 const char INTL_NEO6M[] PROGMEM = "GPS (NEO 6M)";
 const char INTL_BASICAUTH[] PROGMEM = "Autorización";
 
+const char INTL_ENABLE_WIFI[] PROGMEM = "WIFI ENABLED";
 const char INTL_FS_WIFI_DESCRIPTION[] PROGMEM = "Sensor iFi en modo de configuración";
 const char INTL_FS_WIFI_NAME[] PROGMEM = "Nombre";
 const char INTL_MORE_SETTINGS[] PROGMEM ="Otras configruaciones";
