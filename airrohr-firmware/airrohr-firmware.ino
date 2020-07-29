@@ -244,6 +244,8 @@ namespace cfg {
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
 
+	bool wifi_enabled = WIFI_ENABLED;
+
 	// (in)active displays
 	bool has_display = HAS_DISPLAY;											// OLED with SSD1306 and I2C
 	bool has_sh1106 = HAS_SH1106;
@@ -1461,6 +1463,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(INTL_MORE_SETTINGS);
 	page_content += FPSTR(WEB_B_BR);
 
+	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
 	add_form_checkbox(Config_has_display, FPSTR(INTL_DISPLAY));
 	add_form_checkbox(Config_has_sh1106, FPSTR(INTL_SH1106));
 	add_form_checkbox(Config_has_flipped_display, FPSTR(INTL_FLIP_DISPLAY));
@@ -1637,6 +1640,7 @@ static void webserver_config_send_body_post(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
+	add_line_value_bool(page_content, FPSTR(INTL_ENABLE_WIFI), wifi_enabled);
 	add_line_value_bool(page_content, FPSTR(INTL_DISPLAY), has_display);
 	add_line_value_bool(page_content, FPSTR(INTL_SH1106), has_sh1106);
 	add_line_value_bool(page_content, FPSTR(INTL_FLIP_DISPLAY), has_flipped_display);
@@ -2547,6 +2551,41 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 	return millis() - start_send;
 }
 
+
+/*****************************************************************
+ * send single sensor data to SD card                			 *
+ *****************************************************************/
+static unsigned long sendSD(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
+{
+	unsigned long start_send = millis();
+
+	if (cfg::send2sd && data.length())
+	{
+		RESERVE_STRING(data_SD, LARGE_STR);
+		data_SD = FPSTR(data_first_part);
+
+		debug_outln_info(F("## Logging data to SD - "), sensorname);
+		data_SD += data;
+		data_SD.remove(data_SD.length() - 1);
+		data_SD.replace(replace_str, emptyString);
+		data_SD += "], \"timestamp\":";
+		data_SD += "\"";
+		data_SD += timestamp;
+		data_SD += "\"";
+		data_SD += "}";
+		Serial.println(data_SD);
+
+		sensor_readings.print(data_SD);
+		sensor_readings.print(", ");
+		sensor_readings.print(pin);
+		sensor_readings.print(", ");
+		sensor_readings.print(sensorname);
+		sensor_readings.println("/t");
+	}
+
+	return millis() - start_send;
+}
+
 /*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
  *****************************************************************/
@@ -2569,12 +2608,7 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += "\"";
 		data_CFA += "}";
 		Serial.println(data_CFA);
-		sensor_readings.print(data_CFA);
-		sensor_readings.print(", ");
-		sensor_readings.print(pin);
-		sensor_readings.print(", ");
-		sensor_readings.print(sensorname);
-		sensor_readings.println("/t");
+		
 		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
 	}
 
@@ -3734,6 +3768,8 @@ void fetchSensorSPH0645(String& s){
 		  }
 	 else{
 		 debug_outln_error(F("No Mic Value available"));
+		 Reinit_SPH0645(); //Give SPI bus pins back to the MIC
+		 delay(1000);
 	 }
     }
     rx_buf_flag = false;
@@ -4385,6 +4421,13 @@ static void initDNMS() {
 }
 
 static void powerOnTestSensors() {
+	if(cfg::wifi_enabled){
+		debug_outln_info(F("WIFI ENABLED..."));
+	}
+	else{
+		debug_outln_info(F("WIFI DISABLED..."));
+	}
+
 	if (cfg::ppd_read) {
 		pinMode(PPD_PIN_PM1, INPUT_PULLUP);					// Listen at the designated PIN
 		pinMode(PPD_PIN_PM2, INPUT_PULLUP);					// Listen at the designated PIN
@@ -4556,6 +4599,18 @@ static void setupNetworkTime() {
 	configTime(0, 0, ntpServer1, ntpServer2, ntpServer3);
 }
 
+/**************************************************************
+ * OPEN SD-CARD FILE FOR LOGGING
+ * *************************************************************/
+void openLoggingFile(){
+	if (cfg::send2sd){
+		init_SD();
+		debug_outln_info(F("## Logging to SD: "));
+		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		delay(5000);
+	}
+}
+
 static unsigned long sendDataToOptionalApis(const String &data) {
 	unsigned long sum_send_time = 0;
 
@@ -4614,16 +4669,6 @@ static unsigned long sendDataToOptionalApis(const String &data) {
 		send_csv(data);
 	}
 
-	if (cfg::send2sd)
-	{
-		init_SD();
-		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		Reinit_SPH0645(); //Give SPI bus pins back to the MIC
-		delay(5000);
-
-	}
-
 	return sum_send_time;
 }
 
@@ -4674,9 +4719,11 @@ void setup(void) {
 	init_config();
 	init_display();
 	init_lcd();
-	setupNetworkTime();
-	connectWifi();
-	setup_webserver();
+	if(cfg::wifi_enabled){
+		setupNetworkTime();
+		connectWifi();
+		setup_webserver();
+	}
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
 
@@ -4872,38 +4919,72 @@ void loop(void) {
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
 
+		//Open SD-card file for logging
+		openLoggingFile(); 
+
 		if(cfg::sph0645_read){
 			data += result_SPH0645;
-      		sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
-			sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
+			if(cfg::send2sd){
+				sum_send_time += sendSD(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+			} 
+      		if(cfg::wifi_enabled){
+				sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+				sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
+			  } 
 		}
 
 		if (cfg::ppd_read) {
 			data += result_PPD;
-      		sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+			}
+			if(cfg::wifi_enabled){
+				sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+				sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+			}
+      		
 		}
 
 		if (cfg::sds_read) {
 			data += result_SDS;
-      		sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-			sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+				sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+			}
 		}
 		if (cfg::pms_read) {
 			data += result_PMS;
-      		sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+				sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			}
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
-      		sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-			sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+				sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+			}
 		}
 		if (cfg::sps30_read && (! sps30_init_failed)) {
 			fetchSensorSPS30(result);
 			data += result;
-      		sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-			sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+				sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+			}
 			result = emptyString;
 		}
 		if (cfg::dht_read) {
@@ -4915,24 +4996,39 @@ void loop(void) {
 				fetchSensorDHT(result);
 			}
 			data += result;
-      		sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+				sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			}
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
 			// getting temperature and humidity (optional)
 			fetchSensorHTU21D(result);
 			data += result;
-      		sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+				sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+			}
 			result = emptyString;
 		}
 		if (cfg::bmp_read && (! bmp_init_failed)) {
 			// getting temperature and pressure (optional)
 			fetchSensorBMP(result);
 			data += result;
-      		sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-			sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+				sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+			}
 			result = emptyString;
 		}
 		if (cfg::bmx280_read && (! bmx280_init_failed)) {
@@ -4940,11 +5036,21 @@ void loop(void) {
 			fetchSensorBMX280(result);
 			data += result;
 			if (bmx280.sensorID() == BME280_SENSOR_ID) {
-        		sum_send_time += sendCFA(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
-				sum_send_time += sendSensorCommunity(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
+				if(cfg::send2sd) {
+					sum_send_time += sendSD(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
+				}
+        		if(cfg::wifi_enabled){
+					sum_send_time += sendCFA(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
+					sum_send_time += sendSensorCommunity(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
+				}
 			} else {
-        		sum_send_time += sendCFA(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
-				sum_send_time += sendSensorCommunity(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
+				if(cfg::send2sd){
+					sum_send_time += sendSD(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
+				}
+        		if(cfg::wifi_enabled) {
+					sum_send_time += sendCFA(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
+					sum_send_time += sendSensorCommunity(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
+				}
 			}
 			result = emptyString;
 		}
@@ -4952,30 +5058,50 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorSHT3x(result);
 			data += result;
-      		sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-			sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+				sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+			}
 			result = emptyString;
 		}
 		if (cfg::ds18b20_read) {
 			// getting temperature (optional)
 			fetchSensorDS18B20(result);
 			data += result;
-      		sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
-			sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+				sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+			}
 			result = emptyString;
 		}
 		if (cfg::dnms_read && (! dnms_init_failed)) {
 			// getting noise measurement values from dnms (optional)
 			fetchSensorDNMS(result);
 			data += result;
-      		sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+				sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+			}
 			result = emptyString;
 		}
 		if (cfg::gps_read) {
 			data += result_GPS;
-      		sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			if(cfg::send2sd) {
+				sum_send_time += sendSD(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			}
+      		if(cfg::wifi_enabled) {
+				sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+				sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			}
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
@@ -4990,7 +5116,9 @@ void loop(void) {
 
 		yield();
 
-		sum_send_time += sendDataToOptionalApis(data);
+		if(cfg::wifi_enabled) {
+			sum_send_time += sendDataToOptionalApis(data);
+		}
 
 		// https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average
 		sending_time = (3 * sending_time + sum_send_time) / 4;
@@ -4999,7 +5127,7 @@ void loop(void) {
 		}
 
 		// reconnect to WiFi if disconnected
-		if (WiFi.status() != WL_CONNECTED) {
+		if ((WiFi.status() != WL_CONNECTED && cfg::wifi_enabled)) {
 			debug_outln_info(F("Connection lost, reconnecting "));
 			WiFi_error_count++;
 			WiFi.reconnect();
