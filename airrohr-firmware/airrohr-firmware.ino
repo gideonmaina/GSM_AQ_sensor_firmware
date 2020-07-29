@@ -102,7 +102,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include "./DHT.h"
-#include "./PCF8574.h"
+#include <PCF8575.h>
 #include <RTClib.h>
 #include <SD.h>
 #include <SPI.h>
@@ -228,6 +228,7 @@ namespace cfg {
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
 	bool rtc_read = RTC_READ;
+	bool sd_read = SD_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -363,6 +364,11 @@ SoftwareSerial atmega328p;
  * DHT declaration                                               *
  *****************************************************************/
 DHT dht(ONEWIRE_PIN, DHT_TYPE);
+
+/*****************************************************************
+ * PCF8575 declaration                                           *
+ *****************************************************************/
+PCF8575 pcf8575(0x20);
 
 /*****************************************************************
  * HTU21D declaration                                            *
@@ -529,6 +535,7 @@ String last_value_GPS_timestamp;
 String timestamp;
 String last_data_string;
 int last_signal_strength;
+int switchState = 0;
 bool readGPSFromAtmega = true;
 
 bool readDHTFromAtmega = true;
@@ -1474,6 +1481,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
+	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
 	add_form_checkbox(Config_has_lcd2004_27, FPSTR(INTL_LCD2004_27));
 	add_form_checkbox(Config_has_lcd2004, FPSTR(INTL_LCD2004_3F));
 	add_form_checkbox(Config_display_wifi_info, FPSTR(INTL_DISPLAY_WIFI_INFO));
@@ -2587,6 +2595,50 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 }
 
 /*****************************************************************
+ * send single sensor data to SD card                			 *
+ *****************************************************************/
+static unsigned long sendSD(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
+{
+	unsigned long start_send = millis();
+
+	if (cfg::send2sd && data.length())
+	{
+		RESERVE_STRING(data_SD, LARGE_STR);
+		data_SD = FPSTR(data_first_part);
+
+		debug_outln_info(F("## Logging data to SD - "), sensorname);
+		data_SD += data;
+		data_SD.remove(data_SD.length() - 1);
+		data_SD.replace(replace_str, emptyString);
+		data_SD += "], \"timestamp\":";
+		data_SD += "\"";
+		data_SD += timestamp;
+		data_SD += "\"";
+		data_SD += "}";
+		Serial.println(data_SD);
+
+		sensor_readings.print(data_SD);
+		sensor_readings.print(", ");
+		sensor_readings.print(pin);
+		sensor_readings.print(", ");
+		sensor_readings.print(sensorname);
+		sensor_readings.println("/t");
+
+		pcf8575.digitalWrite(LOGGER_LED, HIGH); // turn logger led on for 3 seconds
+		delay(5000);
+		pcf8575.digitalWrite(LOGGER_LED, LOW); // turn logger led off
+		debug_outln_info("sensors data logged successfuly");
+	}
+	else
+	{
+		pcf8575.digitalWrite(LOGGER_LED, LOW); // logger led remains off
+		debug_outln_info("error logging data!!");
+	}
+
+	return millis() - start_send;
+}
+
+/*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
  *****************************************************************/
 static unsigned long sendCFA(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
@@ -2788,11 +2840,14 @@ String fetchSensorDHTFromAtmega(){
 		}
 	}
 
-	// Obtain DHT_time from RTC
-	char buf1[40];
-	DateTime now = rtc.now();
-	sprintf(buf1, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf1;
+	pcf8575.digitalWrite(DHT_LED, HIGH); // turn DHT status LED on for 3 seconds
+	delay(5000);
+	pcf8575.digitalWrite(DHT_LED, LOW); // turn DHT status led off
+
+	obtain_sendTime();
+	pcf8575.digitalWrite(RTC_LED, HIGH);	//turn RTC status led on for 3 seconds
+	delay(5000);
+	pcf8575.digitalWrite(RTC_LED, LOW);	//turn RTC status led off
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3235,11 +3290,6 @@ String fetchSensorPMSFromAtmega(){
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PMSx003));
 	RESERVE_STRING(s,SMALL_STR);
 
-	char buf[40];
-	DateTime now = rtc.now();
-	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf;
-
 	if(send_now){
 		atmega328p.println("fetchSensorPMS");
 		delay(WARMUPTIME_SDS_MS + READINGTIME_SDS_MS + 2000);
@@ -3252,6 +3302,11 @@ String fetchSensorPMSFromAtmega(){
 				//Serial.println(s);
 			}
 		}
+
+		obtain_sendTime();
+		pcf8575.digitalWrite(PMS_LED, HIGH); // turn PMS status led on for 3 seconds
+		delay(5000);
+		pcf8575.digitalWrite(PMS_LED, LOW);	// turn PMS status led off
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
@@ -3609,12 +3664,6 @@ static void fetchSensorGPS(String& s) {
 		}
 	}
 
-	// Obtain GPS send_time from RTC
-	char buf3[40];
-	DateTime now = rtc.now();
-	sprintf(buf3, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf3;
-
 	if (send_now) {
 		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
 		debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
@@ -3626,6 +3675,7 @@ static void fetchSensorGPS(String& s) {
 		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
 		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
 		debug_outln_info(FPSTR(DBG_TXT_SEP));
+
 	}
 
 	if ( count_sends > 0 && gps.charsProcessed() < 10) {
@@ -3725,8 +3775,29 @@ String fetchSensorGPSFromAtmega(){
 		}
 	}
 
+	obtain_sendTime();
+	pcf8575.digitalWrite(GPS_LED, HIGH); // turn GPS status led on for 3 seconds
+	delay(5000);
+	pcf8575.digitalWrite(GPS_LED, LOW); // turn GPS status led off
+
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	return s;
+}
+
+/*****************************************************************
+ * INITIALIZE PCF8575										     *
+ *****************************************************************/
+void init_PCF8575() {
+
+	Serial.begin(115200);
+
+	pcf8575.pinMode(GPS_LED, OUTPUT);
+	pcf8575.pinMode(LOGGER_LED, OUTPUT);
+	pcf8575.pinMode(RTC_LED, OUTPUT);
+	pcf8575.pinMode(MIC_LED, OUTPUT);
+	pcf8575.pinMode(PMS_LED, OUTPUT);
+	pcf8575.pinMode(DHT_LED, OUTPUT);
+	pcf8575.pinMode(LOGGER_SWITCH, INPUT);
 }
 
 /****************************************************************
@@ -3775,15 +3846,13 @@ void fetchSensorSPH0645(String& s){
     rx_buf_flag = false;
   }
 
-//	Obtain SPH0645 send_time from RTC
-  char buf2[40];
-  DateTime now = rtc.now();
-  sprintf(buf2, "%02d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  timestamp = buf2;
-
   if(send_now){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
+	  obtain_sendTime();
+	  pcf8575.digitalWrite(MIC_LED, HIGH);	// turn mic status led on for 3 seconds
+	  delay(5000);
+	  pcf8575.digitalWrite(MIC_LED, LOW);	// turn mic status led off
   }
 
 }
@@ -3802,6 +3871,21 @@ void init_RTC()
 		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
 	}
+	else
+	{
+		pcf8575.digitalWrite(RTC_LED, HIGH);	// turn RTC status led on for 3 seconds
+		delay(5000);
+		pcf8575.digitalWrite(RTC_LED, LOW);	//turn RTC status led off
+	}
+	
+}
+
+void obtain_sendTime()
+{
+	char buf[40];
+	DateTime now = rtc.now();
+	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+	timestamp = buf;
 }
 
 /*****************************************************************
@@ -4421,10 +4505,12 @@ static void initDNMS() {
 }
 
 static void powerOnTestSensors() {
-	if(cfg::wifi_enabled){
+	if (cfg::wifi_enabled)
+	{
 		debug_outln_info(F("WIFI ENABLED..."));
 	}
-	else{
+	else
+	{
 		debug_outln_info(F("WIFI DISABLED..."));
 	}
 
@@ -4450,6 +4536,9 @@ static void powerOnTestSensors() {
 		delay(100);
 		debug_outln_info(F("Stopping PMS..."));
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
+		pcf8575.digitalWrite(PMS_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(PMS_LED, LOW);
 	}
 
 	if (cfg::hpm_read) {
@@ -4470,12 +4559,18 @@ static void powerOnTestSensors() {
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
+		pcf8575.digitalWrite(DHT_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(DHT_LED, LOW);
 	}
 
 	if (cfg::rtc_read) {
 		rtc.begin();
 		debug_outln_info(F("Read Time from RTC..."));
 		init_RTC();
+		pcf8575.digitalWrite(RTC_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(RTC_LED, LOW);
 	}
 
 	if (cfg::htu21d_read) {
@@ -4525,6 +4620,21 @@ static void powerOnTestSensors() {
 	if(cfg::sph0645_read){
 		debug_outln_info(F("Read SPH0645..."));
 		init_SPH0645();
+		pcf8575.digitalWrite(MIC_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(MIC_LED, LOW);
+	}
+
+	if (cfg::gps_read){
+		pcf8575.digitalWrite(GPS_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(GPS_LED, LOW);
+	}
+
+	if (cfg::sd_read){
+		pcf8575.digitalWrite(LOGGER_LED, HIGH);
+		delay(2000);
+		pcf8575.digitalWrite(LOGGER_LED, LOW);
 	}
 
 }
@@ -4602,8 +4712,11 @@ static void setupNetworkTime() {
 /**************************************************************
  * OPEN SD-CARD FILE FOR LOGGING
  * *************************************************************/
-void openLoggingFile(){
-	if (cfg::send2sd){
+void openLoggingFile()
+{
+	switchState = digitalRead(LOGGER_SWITCH); // Read state of the log switch
+	if (cfg::send2sd && switchState == HIGH)
+	{
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
 		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
@@ -4843,22 +4956,10 @@ void loop(void) {
 
 
 	if (cfg::rtc_read) {
-		DateTime now = rtc.now();
-		debug_outln_info("The RTC time is: ");
-		Serial.print(now.year(), DEC);
-		Serial.print('/');
-		Serial.print(now.month(), DEC);
-		Serial.print('/');
-		Serial.print(now.day(), DEC);
-		Serial.print(' ');
-		Serial.print(now.hour(), DEC);
-		Serial.print(':');
-		Serial.print(now.minute(), DEC);
-		Serial.print(':');
-		Serial.print(now.second(), DEC);
-		Serial.println();
-		delay(5000);
-  }
+		obtain_sendTime();
+		Serial.println(timestamp);
+		delay(30000);
+	}
   
 	if(cfg::sph0645_read){
 		fetchSensorSPH0645(result_SPH0645);
@@ -4944,7 +5045,6 @@ void loop(void) {
 			}
       		
 		}
-
 		if (cfg::sds_read) {
 			data += result_SDS;
 			if(cfg::send2sd) {
