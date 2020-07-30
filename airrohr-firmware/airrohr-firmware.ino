@@ -2300,6 +2300,56 @@ static int selectChannelForAp() {
 	}
 }
 
+
+
+/****************************************************************
+ * ENABLE WEB-SERVER OFFLINE
+ * **************************************************************/
+void enableWebServerOffline(){
+	debug_outln_info(F("Starting WiFiManager"));
+	debug_outln_info(F("AP ID: "), String(cfg::fs_ssid));
+	debug_outln_info(F("Password: "), String(cfg::fs_pwd));
+
+	wificonfig_loop = true;
+
+	WiFi.disconnect(true);
+	debug_outln_info(F("scan for wifi networks..."));
+	count_wifiInfo = WiFi.scanNetworks(false /* scan async */, true /* show hidden networks */);
+	delete [] wifiInfo;
+	wifiInfo = new struct_wifiInfo[count_wifiInfo];
+
+	for (int i = 0; i < count_wifiInfo; i++) {
+		String SSID;
+		uint8_t* BSSID;
+
+		memset(&wifiInfo[i], 0, sizeof(struct_wifiInfo));
+#if defined(ESP8266)
+		WiFi.getNetworkInfo(i, SSID, wifiInfo[i].encryptionType,
+			wifiInfo[i].RSSI, BSSID, wifiInfo[i].channel,
+			wifiInfo[i].isHidden);
+#else
+		WiFi.getNetworkInfo(i, SSID, wifiInfo[i].encryptionType,
+			wifiInfo[i].RSSI, BSSID, wifiInfo[i].channel);
+#endif
+		SSID.toCharArray(wifiInfo[i].ssid, sizeof(wifiInfo[0].ssid));
+	}
+
+	WiFi.mode(WIFI_AP);
+	const IPAddress apIP(192, 168, 4, 1);
+	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
+	// In case we create a unique password at first start
+	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
+
+	DNSServer dnsServer;
+	// Ensure we don't poison the client DNS cache
+	dnsServer.setTTL(0);
+	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+	dnsServer.start(53, "*", apIP);							// 53 is port for DNS server
+
+	setup_webserver();
+}
+
 /*****************************************************************
  * WifiConfig                                                    *
  *****************************************************************/
@@ -4801,6 +4851,9 @@ void setup(void) {
 		setupNetworkTime();
 		connectWifi();
 		setup_webserver();
+	}
+	if(!cfg::wifi_enabled){
+		enableWebServerOffline();
 	}
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
