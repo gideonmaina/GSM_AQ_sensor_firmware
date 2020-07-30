@@ -4872,11 +4872,11 @@ void setup(void) {
 
 	delay(50);
 
-	// sometimes parallel sending data and web page will stop nodemcu, watchdogtimer set to 30 seconds
+	// sometimes parallel sending data and web page will stop nodemcu, watchdogtimer set to 120 seconds
 #if defined(ESP8266)
 	wdt_disable();
 #if defined(NDEBUG)
-	wdt_enable(30000);
+	wdt_enable(120000);
 #endif
 #endif
 
@@ -4972,7 +4972,7 @@ void loop(void) {
 	if (cfg::rtc_read) {
 		obtain_sendTime();
 		Serial.println(timestamp);
-		delay(30000);
+		delay(2000);
 	}
   
 	if(cfg::sph0645_read){
@@ -5028,7 +5028,9 @@ void loop(void) {
 	server.handleClient();
 	if(!cfg::wifi_enabled){
 		dnsServer.processNextRequest();
-
+		#if defined(ESP8266)
+		wdt_reset(); // nodemcu is alive
+		#endif
 	}
 	yield();
 
