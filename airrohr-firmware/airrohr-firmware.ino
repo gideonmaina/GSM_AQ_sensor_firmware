@@ -2559,41 +2559,6 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 	return millis() - start_send;
 }
 
-
-/*****************************************************************
- * send single sensor data to SD card                			 *
- *****************************************************************/
-static unsigned long sendSD(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
-{
-	unsigned long start_send = millis();
-
-	if (cfg::send2sd && data.length())
-	{
-		RESERVE_STRING(data_SD, LARGE_STR);
-		data_SD = FPSTR(data_first_part);
-
-		debug_outln_info(F("## Logging data to SD - "), sensorname);
-		data_SD += data;
-		data_SD.remove(data_SD.length() - 1);
-		data_SD.replace(replace_str, emptyString);
-		data_SD += "], \"timestamp\":";
-		data_SD += "\"";
-		data_SD += timestamp;
-		data_SD += "\"";
-		data_SD += "}";
-		Serial.println(data_SD);
-
-		sensor_readings.print(data_SD);
-		sensor_readings.print(", ");
-		sensor_readings.print(pin);
-		sensor_readings.print(", ");
-		sensor_readings.print(sensorname);
-		sensor_readings.println("/t");
-	}
-
-	return millis() - start_send;
-}
-
 /*****************************************************************
  * send single sensor data to SD card                			 *
  *****************************************************************/
