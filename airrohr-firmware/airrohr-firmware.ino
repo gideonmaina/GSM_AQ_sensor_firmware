@@ -355,6 +355,10 @@ SoftwareSerial* serialGPS;
 #define serialGPS (&(Serial2))
 #endif
 
+/**************************************************************
+ * DNSServer Object declaration
+ * ************************************************************/
+DNSServer dnsServer;
 /****************************************************************
  * ATMEGA328P declaration
  * **************************************************************/
@@ -2335,7 +2339,6 @@ void enableWebServerOffline(){
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
 
-	DNSServer dnsServer;
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -2383,7 +2386,6 @@ static void wifiConfig() {
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
 
-	DNSServer dnsServer;
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -5024,6 +5026,10 @@ void loop(void) {
 	}
 
 	server.handleClient();
+	if(!cfg::wifi_enabled){
+		dnsServer.processNextRequest();
+
+	}
 	yield();
 
 	if (send_now) {
