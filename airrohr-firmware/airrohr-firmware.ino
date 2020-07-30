@@ -1814,9 +1814,7 @@ static void webserver_wifi() {
  * Webserver root: show latest values                            *
  *****************************************************************/
 static void webserver_values() {
-	if (WiFi.status() != WL_CONNECTED) {
-		sendHttpRedirect();
-	} else {
+
 		RESERVE_STRING(page_content, XLARGE_STR);
 		start_html_page(page_content, FPSTR(INTL_CURRENT_DATA));
 		const String unit_PM("µg/m³");
@@ -1932,7 +1930,7 @@ static void webserver_values() {
 		page_content += FPSTR(EMPTY_ROW);
 		page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 		end_html_page(page_content);
-	}
+	
 }
 
 static String delayToString(unsigned time_ms) {
@@ -1974,10 +1972,6 @@ static String delayToString(unsigned time_ms) {
  * Webserver root: show device status
  *****************************************************************/
 static void webserver_status() {
-	if (WiFi.status() != WL_CONNECTED) {
-		sendHttpRedirect();
-		return;
-	}
 
 	RESERVE_STRING(page_content, XLARGE_STR);
 	start_html_page(page_content, FPSTR(INTL_DEVICE_STATUS));
