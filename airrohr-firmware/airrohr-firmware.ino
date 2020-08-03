@@ -355,10 +355,7 @@ SoftwareSerial* serialGPS;
 #define serialGPS (&(Serial2))
 #endif
 
-/**************************************************************
- * DNSServer Object declaration
- * ************************************************************/
-DNSServer dnsServer;
+
 /****************************************************************
  * ATMEGA328P declaration
  * **************************************************************/
@@ -2339,6 +2336,7 @@ void enableWebServerOffline(){
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
 
+	DNSServer dnsServer;
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -2385,7 +2383,8 @@ static void wifiConfig() {
 	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
-
+	
+	DNSServer dnsServer;
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -4867,7 +4866,7 @@ void setup(void) {
 	}
 
 	powerOnTestSensors();
-	logEnabledAPIs();
+	logEnabledAPIs();	
 	logEnabledDisplays();
 
 	delay(50);
@@ -5027,7 +5026,6 @@ void loop(void) {
 
 	server.handleClient();
 	if(!cfg::wifi_enabled){
-		dnsServer.processNextRequest();
 		#if defined(ESP8266)
 		wdt_reset(); // nodemcu is alive
 		#endif
