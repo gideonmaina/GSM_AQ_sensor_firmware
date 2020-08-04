@@ -1916,7 +1916,7 @@ static void webserver_values() {
 		}
 		if (cfg::sph0645_read) {
 			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPH0645), FPSTR(INTL_SPH0645), check_display_value(value_SPH0645, -128, 1, 0), unit_LA);
+			add_table_row_from_value(page_content, FPSTR(SENSORS_SPH0645), FPSTR(INTL_SPH0645), check_display_value(value_SPH0645, -1, 1, 0), unit_LA);
 		}
 		if (cfg::gps_read) {
 			page_content += FPSTR(EMPTY_ROW);
