@@ -1482,7 +1482,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
-	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
 	add_form_checkbox(Config_has_lcd2004_27, FPSTR(INTL_LCD2004_27));
 	add_form_checkbox(Config_has_lcd2004, FPSTR(INTL_LCD2004_3F));
 	add_form_checkbox(Config_display_wifi_info, FPSTR(INTL_DISPLAY_WIFI_INFO));
@@ -1914,6 +1913,10 @@ static void webserver_values() {
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LEQ_A), check_display_value(last_value_dnms_laeq, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MIN), check_display_value(last_value_dnms_la_min, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MAX), check_display_value(last_value_dnms_la_max, -1, 1, 0), unit_LA);
+		}
+		if (cfg::sph0645_read) {
+			page_content += FPSTR(EMPTY_ROW);
+			add_table_row_from_value(page_content, FPSTR(SENSORS_SPH0645), FPSTR(INTL_SPH0645), check_display_value(value_SPH0645, -128, 1, 0), unit_LA);
 		}
 		if (cfg::gps_read) {
 			page_content += FPSTR(EMPTY_ROW);
