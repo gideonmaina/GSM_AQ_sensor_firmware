@@ -2296,7 +2296,6 @@ static int selectChannelForAp() {
 }
 
 
-
 /****************************************************************
  * ENABLE WEB-SERVER OFFLINE
  * **************************************************************/
@@ -2305,29 +2304,7 @@ void enableWebServerOffline(){
 	debug_outln_info(F("AP ID: "), String(cfg::fs_ssid));
 	debug_outln_info(F("Password: "), String(cfg::fs_pwd));
 
-	wificonfig_loop = true;
-
 	WiFi.disconnect(true);
-	debug_outln_info(F("scan for wifi networks..."));
-	count_wifiInfo = WiFi.scanNetworks(false /* scan async */, true /* show hidden networks */);
-	delete [] wifiInfo;
-	wifiInfo = new struct_wifiInfo[count_wifiInfo];
-
-	for (int i = 0; i < count_wifiInfo; i++) {
-		String SSID;
-		uint8_t* BSSID;
-
-		memset(&wifiInfo[i], 0, sizeof(struct_wifiInfo));
-#if defined(ESP8266)
-		WiFi.getNetworkInfo(i, SSID, wifiInfo[i].encryptionType,
-			wifiInfo[i].RSSI, BSSID, wifiInfo[i].channel,
-			wifiInfo[i].isHidden);
-#else
-		WiFi.getNetworkInfo(i, SSID, wifiInfo[i].encryptionType,
-			wifiInfo[i].RSSI, BSSID, wifiInfo[i].channel);
-#endif
-		SSID.toCharArray(wifiInfo[i].ssid, sizeof(wifiInfo[0].ssid));
-	}
 
 	WiFi.mode(WIFI_AP);
 	const IPAddress apIP(192, 168, 4, 1);
