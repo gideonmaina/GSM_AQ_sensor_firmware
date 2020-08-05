@@ -1982,14 +1982,13 @@ static void webserver_status() {
 		sendHttpRedirect();	
 		return;	
 	}
-
 	RESERVE_STRING(page_content, XLARGE_STR);
 	start_html_page(page_content, FPSTR(INTL_DEVICE_STATUS));
 
 	debug_outln_info(F("ws: status ..."));
 	server.sendContent(page_content);
 	page_content = F("<table cellspacing='0' border='1' cellpadding='5'>\n"
-			"<tr><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr>");
+			 "<tr><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr>");
 	String versionHtml(SOFTWARE_VERSION);
 	versionHtml += F("/ST:");
 	versionHtml += String(!airrohr_selftest_failed);
@@ -2003,7 +2002,7 @@ static void webserver_status() {
 		add_table_row_from_value(page_content, F("Last OTA"), delayToString(millis() - last_update_attempt));
 	}
 #if defined(ESP8266)
-	add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
+      add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
 	StreamString ntpinfo;
 
 	for (unsigned i = 0; i < SNTP_MAX_SERVERS; i++) {
@@ -2061,7 +2060,6 @@ static void webserver_status() {
 
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 	end_html_page(page_content);
-	
 }
 
 /*****************************************************************
