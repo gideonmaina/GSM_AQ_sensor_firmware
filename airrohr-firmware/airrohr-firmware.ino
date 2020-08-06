@@ -1979,7 +1979,7 @@ static String delayToString(unsigned time_ms) {
  *****************************************************************/
 static void webserver_status() {
 	if ((WiFi.status() != WL_CONNECTED) && cfg::wifi_enabled) {	
-		sendHttpRedirect();	
+		sendHttpRedirect();
 		return;	
 	}
 	RESERVE_STRING(page_content, XLARGE_STR);
