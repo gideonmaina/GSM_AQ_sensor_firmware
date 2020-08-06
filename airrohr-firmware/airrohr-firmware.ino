@@ -4851,7 +4851,7 @@ void setup(void) {
 	}
 
 	powerOnTestSensors();
-	logEnabledAPIs();	
+	logEnabledAPIs();
 	logEnabledDisplays();
 
 	delay(50);
