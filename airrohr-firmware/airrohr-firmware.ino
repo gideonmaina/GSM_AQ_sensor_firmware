@@ -2594,6 +2594,7 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 	}
 	else
 	{
+		switch_status_LEDs_off(LOGGER_LED,HIGH);	//	turn logger status led off
 		debug_outln_info("error logging data!!");
 	}
 
@@ -3760,6 +3761,10 @@ void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16
 	pcf8575.digitalWrite(LED,second_state);
 }
 
+void switch_status_LEDs_off(uint8_t LED, bool off_state) {
+	pcf8575.digitalWrite(LED,HIGH);
+}
+
 /****************************************************************
  * INITIALIZE SPH0645 MICROPHONE
  * **************************************************************/
@@ -3828,6 +3833,7 @@ void init_RTC()
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
+		switch_status_LEDs_off(RTC_LED,HIGH);	//	turn rtc status led off
 	}
 	else
 	{
@@ -4494,6 +4500,10 @@ static void powerOnTestSensors() {
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
 		toggle_status_LEDs(PMS_LED,LOW,HIGH,2000);	//	turn PMS status led on for 2 seconds
 	}
+	else
+	{
+		switch_status_LEDs_off(PMS_LED,HIGH);	//	turn PMS status led off
+	}
 
 	if (cfg::hpm_read) {
 		debug_outln_info(F("Read HPM..."));
@@ -4515,12 +4525,20 @@ static void powerOnTestSensors() {
 		debug_outln_info(F("Read DHT..."));
 		toggle_status_LEDs(DHT_LED,LOW,HIGH,2000);	//	turn DHT status led on for 2 seconds
 	}
+	else
+	{
+		switch_status_LEDs_off(DHT_LED,HIGH);	//	turn DHT status led off
+	}
 
 	if (cfg::rtc_read) {
 		rtc.begin();
 		debug_outln_info(F("Read Time from RTC..."));
 		init_RTC();
 		toggle_status_LEDs(RTC_LED,LOW,HIGH,2000);	//	turn RTC status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(RTC_LED,HIGH);	//	turn RTC status led off
 	}
 
 	if (cfg::htu21d_read) {
@@ -4572,13 +4590,25 @@ static void powerOnTestSensors() {
 		init_SPH0645();
 		toggle_status_LEDs(MIC_LED,LOW,HIGH,2000);	//	turn mic status led on for 2 seconds
 	}
+	else
+	{
+		switch_status_LEDs_off(MIC_LED,HIGH);	//	turn mic status led off
+	}
 
 	if (cfg::gps_read){
 		toggle_status_LEDs(GPS_LED,LOW,HIGH,2000);	//	turn GPS status led on for 2 seconds
 	}
+	else
+	{
+		switch_status_LEDs_off(GPS_LED,HIGH);	//	turn GPS status led off
+	}
 
 	if (cfg::sd_read){
 		toggle_status_LEDs(LOGGER_LED,LOW,HIGH,2000);	//	turn logger status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(LOGGER_LED,HIGH);	//	turn logger status led off
 	}
 
 }
