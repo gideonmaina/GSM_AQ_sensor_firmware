@@ -355,6 +355,7 @@ SoftwareSerial* serialGPS;
 #define serialGPS (&(Serial2))
 #endif
 
+
 /****************************************************************
  * ATMEGA328P declaration
  * **************************************************************/
@@ -1481,7 +1482,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
-	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
 	add_form_checkbox(Config_has_lcd2004_27, FPSTR(INTL_LCD2004_27));
 	add_form_checkbox(Config_has_lcd2004, FPSTR(INTL_LCD2004_3F));
 	add_form_checkbox(Config_display_wifi_info, FPSTR(INTL_DISPLAY_WIFI_INFO));
@@ -1814,8 +1814,8 @@ static void webserver_wifi() {
  * Webserver root: show latest values                            *
  *****************************************************************/
 static void webserver_values() {
-	if (WiFi.status() != WL_CONNECTED) {
-		sendHttpRedirect();
+	if ((WiFi.status() != WL_CONNECTED) && cfg::wifi_enabled) {	
+		sendHttpRedirect();	
 	} else {
 		RESERVE_STRING(page_content, XLARGE_STR);
 		start_html_page(page_content, FPSTR(INTL_CURRENT_DATA));
@@ -1914,6 +1914,10 @@ static void webserver_values() {
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MIN), check_display_value(last_value_dnms_la_min, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MAX), check_display_value(last_value_dnms_la_max, -1, 1, 0), unit_LA);
 		}
+		if (cfg::sph0645_read) {
+			page_content += FPSTR(EMPTY_ROW);
+			add_table_row_from_value(page_content, FPSTR(SENSORS_SPH0645), FPSTR(INTL_SPH0645), check_display_value(value_SPH0645, -1, 1, 0), unit_LA);
+		}
 		if (cfg::gps_read) {
 			page_content += FPSTR(EMPTY_ROW);
 			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_LATITUDE), check_display_value(last_value_GPS_lat, -200.0, 6, 0), unit_Deg);
@@ -1974,18 +1978,17 @@ static String delayToString(unsigned time_ms) {
  * Webserver root: show device status
  *****************************************************************/
 static void webserver_status() {
-	if (WiFi.status() != WL_CONNECTED) {
+	if ((WiFi.status() != WL_CONNECTED) && cfg::wifi_enabled) {	
 		sendHttpRedirect();
-		return;
+		return;	
 	}
-
 	RESERVE_STRING(page_content, XLARGE_STR);
 	start_html_page(page_content, FPSTR(INTL_DEVICE_STATUS));
 
 	debug_outln_info(F("ws: status ..."));
 	server.sendContent(page_content);
 	page_content = F("<table cellspacing='0' border='1' cellpadding='5'>\n"
-			  "<tr><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr>");
+			 "<tr><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr>");
 	String versionHtml(SOFTWARE_VERSION);
 	versionHtml += F("/ST:");
 	versionHtml += String(!airrohr_selftest_failed);
@@ -1999,7 +2002,7 @@ static void webserver_status() {
 		add_table_row_from_value(page_content, F("Last OTA"), delayToString(millis() - last_update_attempt));
 	}
 #if defined(ESP8266)
-    add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
+      add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
 	StreamString ntpinfo;
 
 	for (unsigned i = 0; i < SNTP_MAX_SERVERS; i++) {
@@ -2300,6 +2303,33 @@ static int selectChannelForAp() {
 	}
 }
 
+
+/****************************************************************
+ * ENABLE WEB-SERVER OFFLINE
+ * **************************************************************/
+void enableWebServerOffline(){
+	debug_outln_info(F("Starting WiFiManager"));
+	debug_outln_info(F("AP ID: "), String(cfg::fs_ssid));
+	debug_outln_info(F("Password: "), String(cfg::fs_pwd));
+
+	WiFi.disconnect(true);
+
+	WiFi.mode(WIFI_AP);
+	const IPAddress apIP(192, 168, 4, 1);
+	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
+	// In case we create a unique password at first start
+	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
+
+	DNSServer dnsServer;
+	// Ensure we don't poison the client DNS cache
+	dnsServer.setTTL(0);
+	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+	dnsServer.start(53, "*", apIP);							// 53 is port for DNS server
+
+	setup_webserver();
+}
+
 /*****************************************************************
  * WifiConfig                                                    *
  *****************************************************************/
@@ -2338,7 +2368,7 @@ static void wifiConfig() {
 	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
-
+	
 	DNSServer dnsServer;
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
@@ -4802,6 +4832,9 @@ void setup(void) {
 		connectWifi();
 		setup_webserver();
 	}
+	if(!cfg::wifi_enabled){
+		enableWebServerOffline();
+	}
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
 
@@ -4823,11 +4856,11 @@ void setup(void) {
 
 	delay(50);
 
-	// sometimes parallel sending data and web page will stop nodemcu, watchdogtimer set to 30 seconds
+	// sometimes parallel sending data and web page will stop nodemcu, watchdogtimer set to 120 seconds
 #if defined(ESP8266)
 	wdt_disable();
 #if defined(NDEBUG)
-	wdt_enable(30000);
+	wdt_enable(120000);
 #endif
 #endif
 
@@ -4923,7 +4956,7 @@ void loop(void) {
 	if (cfg::rtc_read) {
 		obtain_sendTime();
 		Serial.println(timestamp);
-		delay(30000);
+		delay(2000);
 	}
   
 	if(cfg::sph0645_read){
@@ -4977,6 +5010,11 @@ void loop(void) {
 	}
 
 	server.handleClient();
+	if(!cfg::wifi_enabled){
+		#if defined(ESP8266)
+		wdt_reset(); // nodemcu is alive
+		#endif
+	}
 	yield();
 
 	if (send_now) {
