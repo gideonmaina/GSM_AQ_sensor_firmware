@@ -70,7 +70,7 @@ String		measurement_name_influx
 Bool		ssl_influx
 UInt        total_logs
 UInt        daily_logs
-Uint        current_date
+UInt        current_date
 """
 
 with open("airrohr-cfg.h", "w") as h:

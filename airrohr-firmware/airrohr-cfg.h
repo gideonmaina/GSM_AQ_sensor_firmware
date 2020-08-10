@@ -235,5 +235,5 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SSL_INFLUX), &cfg::ssl_influx },
 	{ Config_Type_UInt, 0, FPSTR(CFG_KEY_TOTAL_LOGS), &cfg::total_logs },
 	{ Config_Type_UInt, 0, FPSTR(CFG_KEY_DAILY_LOGS), &cfg::daily_logs },
-	{ Config_Type_Uint, 0, FPSTR(CFG_KEY_CURRENT_DATE), &cfg::current_date },
+	{ Config_Type_UInt, 0, FPSTR(CFG_KEY_CURRENT_DATE), &cfg::current_date },
 };

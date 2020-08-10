@@ -283,6 +283,7 @@ namespace cfg {
 	//logging variables
 	unsigned total_logs = 0;
 	unsigned daily_logs = 0;
+	unsigned current_date = 0;
 
 	void initNonTrivials(const char* id) {
 		strcpy(cfg::current_lang, CURRENT_LANG);
@@ -897,9 +898,12 @@ void resetDailyLogCounter(bool oldconfig = false){
 	configFile.close();
 	if(!err){
 		ConfigShapeEntry c;
-	}
-	else{
-		return;
+		memcpy_P(&c, &configShape[Config_current_date], sizeof(ConfigShapeEntry));
+		DateTime now = rtc.now();
+		if(now.day() != cfg::current_date){
+			cfg::current_date = now.day();
+			writeConfig();
+		}
 	}
 }
 
@@ -4731,6 +4735,11 @@ static void setupNetworkTime() {
  * *************************************************************/
 void openLoggingFile()
 {
+	//increment Log counters
+	cfg::total_logs+=1;
+	cfg::daily_logs+=1;
+	resetDailyLogCounter();
+	writeConfig();
 	switchState = digitalRead(LOGGER_SWITCH); // Read state of the log switch
 	if (cfg::send2sd && switchState == HIGH)
 	{
