@@ -2619,14 +2619,12 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 		sensor_readings.print(sensorname);
 		sensor_readings.println("/t");
 
-		pcf8575.digitalWrite(LOGGER_LED, LOW); // turn logger led on for 3 seconds
-		delay(5000);
-		pcf8575.digitalWrite(LOGGER_LED, HIGH); // turn logger led off
+		toggle_status_LEDs(LOGGER_LED,LOW,HIGH,5000);	// turn logger status led on for 5 seconds
 		debug_outln_info("sensors data logged successfuly");
 	}
 	else
 	{
-		pcf8575.digitalWrite(LOGGER_LED, HIGH); // logger led remains off
+		switch_status_LEDs_off(LOGGER_LED,HIGH);	// turn logger status led off
 		debug_outln_info("error logging data!!");
 	}
 
@@ -2835,14 +2833,10 @@ String fetchSensorDHTFromAtmega(){
 		}
 	}
 
-	pcf8575.digitalWrite(DHT_LED, LOW); // turn DHT status LED on for 3 seconds
-	delay(5000);
-	pcf8575.digitalWrite(DHT_LED, HIGH); // turn DHT status led off
+	toggle_status_LEDs(DHT_LED,LOW,HIGH,5000);	// turn DHT status LED on for 5 seconds
 
 	obtain_sendTime();
-	pcf8575.digitalWrite(RTC_LED, LOW);	//turn RTC status led on for 3 seconds
-	delay(5000);
-	pcf8575.digitalWrite(RTC_LED, HIGH);	//turn RTC status led off
+	toggle_status_LEDs(RTC_LED,LOW,HIGH,5000);	// turn RTC status LED on for 5 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3299,10 +3293,13 @@ String fetchSensorPMSFromAtmega(){
 		}
 
 		obtain_sendTime();
-		pcf8575.digitalWrite(PMS_LED, LOW); // turn PMS status led on for 3 seconds
-		delay(5000);
-		pcf8575.digitalWrite(PMS_LED, HIGH);	// turn PMS status led off
+		toggle_status_LEDs(PMS_LED,LOW,HIGH,5000);	// turn PMS status led on for 5 seconds
 	}
+	else
+	{
+		switch_status_LEDs_off(PMS_LED,HIGH);	// turn PMS status led off
+	}
+	
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 	return s;
@@ -3771,9 +3768,7 @@ String fetchSensorGPSFromAtmega(){
 	}
 
 	obtain_sendTime();
-	pcf8575.digitalWrite(GPS_LED, LOW); // turn GPS status led on for 3 seconds
-	delay(5000);
-	pcf8575.digitalWrite(GPS_LED, HIGH); // turn GPS status led off
+	toggle_status_LEDs(GPS_LED,LOW,HIGH,5000);	// turn GPS status LED on for 5 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	return s;
@@ -3793,6 +3788,16 @@ void init_PCF8575() {
 	pcf8575.pinMode(PMS_LED, OUTPUT);
 	pcf8575.pinMode(DHT_LED, OUTPUT);
 	pcf8575.pinMode(LOGGER_SWITCH, INPUT);
+}
+
+void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16_t _delay) {
+	pcf8575.digitalWrite(LED,first_state);
+	delay(_delay);
+	pcf8575.digitalWrite(LED,second_state);
+}
+
+void switch_status_LEDs_off(uint8_t LED, bool off_state) {
+	pcf8575.digitalWrite(LED,HIGH);
 }
 
 /****************************************************************
@@ -3845,10 +3850,13 @@ void fetchSensorSPH0645(String& s){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
 	  obtain_sendTime();
-	  pcf8575.digitalWrite(MIC_LED, LOW);	// turn mic status led on for 3 seconds
-	  delay(5000);
-	  pcf8575.digitalWrite(MIC_LED, HIGH);	// turn mic status led off
+	  toggle_status_LEDs(MIC_LED,LOW,HIGH,5000);	// turn mic status led on for 5 seconds
   }
+  else
+  {
+	  switch_status_LEDs_off(MIC_LED,HIGH);	// turn mic status led off
+  }
+  
 
 }
 
@@ -3865,12 +3873,11 @@ void init_RTC()
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		// Set explicit time for example 19th May 2020 at 12 noon.
 		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
+		switch_status_LEDs_off(RTC_LED,HIGH);	// turn rtc status led off
 	}
 	else
 	{
-		pcf8575.digitalWrite(RTC_LED, LOW);	// turn RTC status led on for 3 seconds
-		delay(5000);
-		pcf8575.digitalWrite(RTC_LED, HIGH);	//turn RTC status led off
+		toggle_status_LEDs(RTC_LED,LOW,HIGH,5000);	// turn RTC status led on for 5 seconds
 	}
 	
 }
@@ -4531,9 +4538,11 @@ static void powerOnTestSensors() {
 		delay(100);
 		debug_outln_info(F("Stopping PMS..."));
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
-		pcf8575.digitalWrite(PMS_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(PMS_LED, HIGH);
+		toggle_status_LEDs(PMS_LED,LOW,HIGH,2000);	// turn PMS status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(PMS_LED,HIGH);	// turn PMS status led off
 	}
 
 	if (cfg::hpm_read) {
@@ -4554,18 +4563,22 @@ static void powerOnTestSensors() {
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
-		pcf8575.digitalWrite(DHT_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(DHT_LED, HIGH);
+		toggle_status_LEDs(DHT_LED,LOW,HIGH,2000);	// turn DHT status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(DHT_LED,HIGH);	// turn DHT status led off
 	}
 
 	if (cfg::rtc_read) {
 		rtc.begin();
 		debug_outln_info(F("Read Time from RTC..."));
 		init_RTC();
-		pcf8575.digitalWrite(RTC_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(RTC_LED, HIGH);
+		toggle_status_LEDs(RTC_LED,LOW,HIGH,2000);	// turn RTC status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(RTC_LED,HIGH);	// turn RTC status led off
 	}
 
 	if (cfg::htu21d_read) {
@@ -4615,21 +4628,27 @@ static void powerOnTestSensors() {
 	if(cfg::sph0645_read){
 		debug_outln_info(F("Read SPH0645..."));
 		init_SPH0645();
-		pcf8575.digitalWrite(MIC_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(MIC_LED, HIGH);
+		toggle_status_LEDs(MIC_LED,LOW,HIGH,2000);	// turn mic status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(MIC_LED,HIGH);	// turn mic status led off
 	}
 
 	if (cfg::gps_read){
-		pcf8575.digitalWrite(GPS_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(GPS_LED, HIGH);
+		toggle_status_LEDs(GPS_LED,LOW,HIGH,2000);	// turn GPS status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(GPS_LED,HIGH);	// turn GPS status led off
 	}
 
 	if (cfg::sd_read){
-		pcf8575.digitalWrite(LOGGER_LED, LOW);
-		delay(2000);
-		pcf8575.digitalWrite(LOGGER_LED, HIGH);
+		toggle_status_LEDs(LOGGER_LED,LOW,HIGH,2000);	// turn logger status led on for 2 seconds
+	}
+	else
+	{
+		switch_status_LEDs_off(LOGGER_LED,HIGH);	// turn logger status led off
 	}
 
 }
