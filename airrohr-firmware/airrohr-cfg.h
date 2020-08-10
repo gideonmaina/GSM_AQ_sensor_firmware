@@ -93,6 +93,7 @@ enum ConfigShapeId {
 	Config_ssl_influx,
 	Config_total_logs,
 	Config_daily_logs,
+	Config_current_date,
 };
 const char CFG_KEY_CURRENT_LANG[] PROGMEM = "current_lang";
 const char CFG_KEY_WLANSSID[] PROGMEM = "wlanssid";
@@ -163,6 +164,7 @@ const char CFG_KEY_MEASUREMENT_NAME_INFLUX[] PROGMEM = "measurement_name_influx"
 const char CFG_KEY_SSL_INFLUX[] PROGMEM = "ssl_influx";
 const char CFG_KEY_TOTAL_LOGS[] PROGMEM = "total_logs";
 const char CFG_KEY_DAILY_LOGS[] PROGMEM = "daily_logs";
+const char CFG_KEY_CURRENT_DATE[] PROGMEM = "current_date";
 static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_String, sizeof(cfg::current_lang)-1, FPSTR(CFG_KEY_CURRENT_LANG), cfg::current_lang },
 	{ Config_Type_String, sizeof(cfg::wlanssid)-1, FPSTR(CFG_KEY_WLANSSID), cfg::wlanssid },
@@ -233,4 +235,5 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SSL_INFLUX), &cfg::ssl_influx },
 	{ Config_Type_UInt, 0, FPSTR(CFG_KEY_TOTAL_LOGS), &cfg::total_logs },
 	{ Config_Type_UInt, 0, FPSTR(CFG_KEY_DAILY_LOGS), &cfg::daily_logs },
+	{ Config_Type_Uint, 0, FPSTR(CFG_KEY_CURRENT_DATE), &cfg::current_date },
 };
