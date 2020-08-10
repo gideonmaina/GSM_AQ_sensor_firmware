@@ -883,6 +883,9 @@ static void disable_unneeded_nmea() {
 	serialGPS->println(F("$PUBX,40,VTG,0,0,0,0*5E"));       // Track made good and ground speed
 }
 
+/*******************************************************
+ * RESET DAILY LOG COUNTER
+ * *****************************************************/
 void resetDailyLogCounter(bool oldconfig = false){
 	String cfgName(F("/config.json"));
 	if (oldconfig) {
@@ -899,9 +902,11 @@ void resetDailyLogCounter(bool oldconfig = false){
 	if(!err){
 		ConfigShapeEntry c;
 		memcpy_P(&c, &configShape[Config_current_date], sizeof(ConfigShapeEntry));
+		*(c.cfg_val.as_uint) = json[c.cfg_key].as<unsigned int>();
 		DateTime now = rtc.now();
 		if(now.day() != cfg::current_date){
 			cfg::current_date = now.day();
+			cfg::daily_logs = 0;
 			writeConfig();
 		}
 	}
@@ -1957,10 +1962,10 @@ static void webserver_values() {
 
 		server.sendContent(page_content);
 		page_content = FPSTR(EMPTY_ROW);
-
-		add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_STRENGTH), String(last_signal_strength), "dBm");
-		add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_QUALITY), String(signal_quality), "%");
-
+		if(cfg::wifi_enabled) {
+			add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_STRENGTH), String(last_signal_strength), "dBm");
+			add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_QUALITY), String(signal_quality), "%");
+		}
 		page_content += FPSTR(EMPTY_ROW);
 		page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 		end_html_page(page_content);
@@ -2074,6 +2079,10 @@ static void webserver_status() {
 	if (cfg::sps30_read) {
 		add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), String(SPS30_read_error_counter));
 	}
+	page_content += FPSTR(EMPTY_ROW);
+	page_content += F("<tr><td colspan='2'><b>" "LOG COUNT" "</b></td></tr>");
+	add_table_row_from_value(page_content, F("TOTAL LOGS"), String(cfg::total_logs));
+	add_table_row_from_value(page_content, F("DAILY LOGS"), String(cfg::daily_logs));
 
 	server.sendContent(page_content);
 	page_content = emptyString;
@@ -4735,10 +4744,10 @@ static void setupNetworkTime() {
  * *************************************************************/
 void openLoggingFile()
 {
+	resetDailyLogCounter();
 	//increment Log counters
 	cfg::total_logs+=1;
 	cfg::daily_logs+=1;
-	resetDailyLogCounter();
 	writeConfig();
 	switchState = digitalRead(LOGGER_SWITCH); // Read state of the log switch
 	if (cfg::send2sd && switchState == HIGH)
