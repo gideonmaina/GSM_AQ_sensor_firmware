@@ -280,6 +280,10 @@ namespace cfg {
 	char user_custom[LEN_USER_CUSTOM] = USER_CUSTOM;
 	char pwd_custom[LEN_CFG_PASSWORD] = PWD_CUSTOM;
 
+	//logging variables
+	unsigned total_logs = 0;
+	unsigned daily_logs = 0;
+
 	void initNonTrivials(const char* id) {
 		strcpy(cfg::current_lang, CURRENT_LANG);
 		strcpy_P(www_username, WWW_USERNAME);
@@ -878,6 +882,26 @@ static void disable_unneeded_nmea() {
 	serialGPS->println(F("$PUBX,40,VTG,0,0,0,0*5E"));       // Track made good and ground speed
 }
 
+void resetDailyLogCounter(bool oldconfig = false){
+	String cfgName(F("/config.json"));
+	if (oldconfig) {
+		cfgName += F(".old");
+	}
+	File configFile = SPIFFS.open(cfgName, "r");
+	if (!configFile) {
+		debug_outln_error(F("failed to open config file."));
+		return;
+	}
+	DynamicJsonDocument json(JSON_BUFFER_SIZE);
+	DeserializationError err = deserializeJson(json, configFile);
+	configFile.close();
+	if(!err){
+		ConfigShapeEntry c;
+	}
+	else{
+		return;
+	}
+}
 
 /*****************************************************************
  * read config from spiffs                                       *
@@ -3783,8 +3807,6 @@ String fetchSensorGPSFromAtmega(){
  * INITIALIZE PCF8575										     *
  *****************************************************************/
 void init_PCF8575() {
-
-	Serial.begin(115200);
 
 	pcf8575.pinMode(GPS_LED, OUTPUT);
 	pcf8575.pinMode(LOGGER_LED, OUTPUT);
