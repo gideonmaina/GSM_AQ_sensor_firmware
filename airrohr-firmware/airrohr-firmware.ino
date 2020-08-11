@@ -2053,8 +2053,10 @@ static void webserver_status() {
 		add_table_row_from_value(page_content, F("NTP Info"), ntpinfo);
 	#endif
 	}
-	time_t now = time(nullptr);
-	add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
+	if(cfg::wifi_enabled){
+		time_t now = time(nullptr);
+		add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
+	}
 	add_table_row_from_value(page_content, F("Uptime"), delayToString(millis() - time_point_device_start_ms));
 	add_table_row_from_value(page_content, F("Reset Reason"), ESP.getResetReason());
 	if (cfg::sds_read) {
