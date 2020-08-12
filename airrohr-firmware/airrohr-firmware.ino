@@ -2034,26 +2034,29 @@ static void webserver_status() {
 	if (cfg::auto_update) {
 		add_table_row_from_value(page_content, F("Last OTA"), delayToString(millis() - last_update_attempt));
 	}
-#if defined(ESP8266)
-      add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
-	StreamString ntpinfo;
+	if(cfg::wifi_enabled){
+	#if defined(ESP8266)
+		add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
+		StreamString ntpinfo;
 
-	for (unsigned i = 0; i < SNTP_MAX_SERVERS; i++) {
-		const ip_addr_t* sntp = sntp_getserver(i);
-		if (sntp && !ip_addr_isany(sntp)) {
-			const char* name = sntp_getservername(i);
-			if (!ntpinfo.isEmpty()) {
-				ntpinfo.print(FPSTR(BR_TAG));
+		for (unsigned i = 0; i < SNTP_MAX_SERVERS; i++) {
+			const ip_addr_t* sntp = sntp_getserver(i);
+			if (sntp && !ip_addr_isany(sntp)) {
+				const char* name = sntp_getservername(i);
+				if (!ntpinfo.isEmpty()) {
+					ntpinfo.print(FPSTR(BR_TAG));
+				}
+				ntpinfo.printf_P(PSTR("%s (%s)"), IPAddress(*sntp).toString().c_str(), name ? name : "?");
+				ntpinfo.printf_P(PSTR(" reachable: %s"), sntp_getreachability(i) ? "Yes" : "No");
 			}
-			ntpinfo.printf_P(PSTR("%s (%s)"), IPAddress(*sntp).toString().c_str(), name ? name : "?");
-			ntpinfo.printf_P(PSTR(" reachable: %s"), sntp_getreachability(i) ? "Yes" : "No");
 		}
+		add_table_row_from_value(page_content, F("NTP Info"), ntpinfo);
+	#endif
 	}
-	add_table_row_from_value(page_content, F("NTP Info"), ntpinfo);
-#endif
-
-	time_t now = time(nullptr);
-	add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
+	if(cfg::wifi_enabled){
+		time_t now = time(nullptr);
+		add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
+	}
 	add_table_row_from_value(page_content, F("Uptime"), delayToString(millis() - time_point_device_start_ms));
 	add_table_row_from_value(page_content, F("Reset Reason"), ESP.getResetReason());
 	if (cfg::sds_read) {
@@ -2063,15 +2066,17 @@ static void webserver_status() {
 
 	page_content += FPSTR(EMPTY_ROW);
 	page_content += F("<tr><td colspan='2'><b>" INTL_ERROR "</b></td></tr>");
-	add_table_row_from_value(page_content, F("WiFi"), String(WiFi_error_count));
-	if (last_update_returncode != 0) {
-		add_table_row_from_value(page_content, F("OTA Return"),
-			last_update_returncode > 0 ? String(last_update_returncode) : HTTPClient::errorToString(last_update_returncode));
-	}
-	add_table_row_from_value(page_content, F("Data Send"), String(sendData_error_count));
-	if (last_sendData_returncode != 0) {
-		add_table_row_from_value(page_content, F("Data Send Return"),
-			last_sendData_returncode > 0 ? String(last_sendData_returncode) : HTTPClient::errorToString(last_sendData_returncode));
+	if(cfg::wifi_enabled){
+		add_table_row_from_value(page_content, F("WiFi"), String(WiFi_error_count));
+		if (last_update_returncode != 0) {
+			add_table_row_from_value(page_content, F("OTA Return"),
+				last_update_returncode > 0 ? String(last_update_returncode) : HTTPClient::errorToString(last_update_returncode));
+		}
+		add_table_row_from_value(page_content, F("Data Send"), String(sendData_error_count));
+		if (last_sendData_returncode != 0) {
+			add_table_row_from_value(page_content, F("Data Send Return"),
+				last_sendData_returncode > 0 ? String(last_sendData_returncode) : HTTPClient::errorToString(last_sendData_returncode));
+		}
 	}
 	if (cfg::sds_read) {
 		add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), String(SDS_error_count));
