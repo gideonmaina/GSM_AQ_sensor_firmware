@@ -229,7 +229,7 @@ void ICACHE_RAM_ATTR slc_isr(void *para)
 */
 float convert_to_dB(float value){
   float dBs;
-  dBs = FULL_SCALE_DBSPL-(FULL_SCALE_DBFS-20*log10(sqrt(2) * (value) * CONST_FACTOR));
+  dBs = FULL_SCALE_DBSPL-(FULL_SCALE_DBFS-20*log10(sqrt(2) * abs(value) * CONST_FACTOR));
   
   return dBs;
 
