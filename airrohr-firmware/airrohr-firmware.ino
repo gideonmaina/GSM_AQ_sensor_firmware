@@ -410,7 +410,7 @@ TinyGPSPlus gps;
 /*****************************************************************
  * RTC declaration                                               *
  *****************************************************************/
-RTC_DS1307 rtc;
+RTC_DS3231 rtc;
 
 /*****************************************************************
  * MicroSD declaration                                           *
@@ -3907,7 +3907,7 @@ void init_RTC()
 {
 	pinMode(RTC_PIN_SDA, OUTPUT);
 	pinMode(RTC_PIN_SCL, OUTPUT);
-	if (!rtc.isrunning())
+	if (!rtc.begin())
 	{
 		// sets time to the date this sketch was compiled
 		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));

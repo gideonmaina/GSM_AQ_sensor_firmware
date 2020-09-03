@@ -122,8 +122,8 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PM_SERIAL_TX D0
 
 // define pins for I2C
-#define I2C_PIN_SCL D2
-#define I2C_PIN_SDA D1
+#define I2C_PIN_SCL D1
+#define I2C_PIN_SDA D2
 
 //define pins for ATMEGA328P
 #define ATMEGA_RX D4
@@ -134,8 +134,8 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_TX D0
 
 // define pins for RTC I2C interface
-#define RTC_PIN_SDA D1
-#define RTC_PIN_SCL D2
+#define RTC_PIN_SDA D2
+#define RTC_PIN_SCL D1
 
 // define pins for the micro_sd logger shield
 #define SD_SCK D5
