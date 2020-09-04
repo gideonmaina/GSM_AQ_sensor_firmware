@@ -541,7 +541,6 @@ String last_value_GPS_timestamp;
 String timestamp;
 String last_data_string;
 int last_signal_strength;
-int switchState = 0;
 bool readGPSFromAtmega = true;
 
 bool readDHTFromAtmega = true;
@@ -3827,7 +3826,6 @@ void init_PCF8575() {
 	pcf8575.pinMode(MIC_LED, OUTPUT);
 	pcf8575.pinMode(PMS_LED, OUTPUT);
 	pcf8575.pinMode(DHT_LED, OUTPUT);
-	pcf8575.pinMode(LOGGER_SWITCH, INPUT);
 }
 
 void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16_t _delay) {
@@ -4773,8 +4771,7 @@ void openLoggingFile()
 	cfg::total_logs+=1;
 	cfg::daily_logs+=1;
 	writeConfig();
-	switchState = digitalRead(LOGGER_SWITCH); // Read state of the log switch
-	if (cfg::send2sd && switchState == HIGH)
+	if (cfg::send2sd)
 	{
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
