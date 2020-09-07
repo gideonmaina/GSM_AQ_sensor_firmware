@@ -2877,7 +2877,7 @@ String fetchSensorDHTFromAtmega(){
 	toggle_status_LEDs(DHT_LED,HIGH,LOW,5000);	// turn DHT status LED on for 5 seconds
 
 	obtain_sendTime();
-	toggle_status_LEDs(RTC_LED,HIGH,LOW,5000);	// turn RTC status LED on for 5 seconds
+	toggle_status_LEDs(RTC_LED,HIGH,LOW,2000);	// turn RTC status LED on for 2 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
