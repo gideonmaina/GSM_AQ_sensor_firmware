@@ -2660,12 +2660,12 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 		sensor_readings.print(sensorname);
 		sensor_readings.println("/t");
 
-		toggle_status_LEDs(LOGGER_LED,LOW,HIGH,5000);	// turn logger status led on for 5 seconds
+		toggle_status_LEDs(LOGGER_LED,HIGH,LOW,5000);	// turn logger status led on for 5 seconds
 		debug_outln_info("sensors data logged successfuly");
 	}
 	else
 	{
-		switch_status_LEDs_off(LOGGER_LED,HIGH);	// turn logger status led off
+		switch_status_LEDs_off(LOGGER_LED,LOW);	// turn logger status led off
 		debug_outln_info("error logging data!!");
 	}
 
@@ -2874,10 +2874,10 @@ String fetchSensorDHTFromAtmega(){
 		}
 	}
 
-	toggle_status_LEDs(DHT_LED,LOW,HIGH,5000);	// turn DHT status LED on for 5 seconds
+	toggle_status_LEDs(DHT_LED,HIGH,LOW,5000);	// turn DHT status LED on for 5 seconds
 
 	obtain_sendTime();
-	toggle_status_LEDs(RTC_LED,LOW,HIGH,5000);	// turn RTC status LED on for 5 seconds
+	toggle_status_LEDs(RTC_LED,HIGH,LOW,5000);	// turn RTC status LED on for 5 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3334,11 +3334,11 @@ String fetchSensorPMSFromAtmega(){
 		}
 
 		obtain_sendTime();
-		toggle_status_LEDs(PMS_LED,LOW,HIGH,5000);	// turn PMS status led on for 5 seconds
+		toggle_status_LEDs(PMS_LED,HIGH,LOW,5000);	// turn PMS status led on for 5 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(PMS_LED,HIGH);	// turn PMS status led off
+		switch_status_LEDs_off(PMS_LED,LOW);	// turn PMS status led off
 	}
 	
 
@@ -3809,7 +3809,7 @@ String fetchSensorGPSFromAtmega(){
 	}
 
 	obtain_sendTime();
-	toggle_status_LEDs(GPS_LED,LOW,HIGH,5000);	// turn GPS status LED on for 5 seconds
+	toggle_status_LEDs(GPS_LED,HIGH,LOW,5000);	// turn GPS status LED on for 5 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	return s;
@@ -3820,6 +3820,7 @@ String fetchSensorGPSFromAtmega(){
  *****************************************************************/
 void init_PCF8575() {
 
+	pcf8575.begin();
 	pcf8575.pinMode(GPS_LED, OUTPUT);
 	pcf8575.pinMode(LOGGER_LED, OUTPUT);
 	pcf8575.pinMode(RTC_LED, OUTPUT);
@@ -3835,7 +3836,7 @@ void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16
 }
 
 void switch_status_LEDs_off(uint8_t LED, bool off_state) {
-	pcf8575.digitalWrite(LED,HIGH);
+	pcf8575.digitalWrite(LED,LOW);
 }
 
 /****************************************************************
@@ -3888,11 +3889,11 @@ void fetchSensorSPH0645(String& s){
 	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
 	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
 	  obtain_sendTime();
-	  toggle_status_LEDs(MIC_LED,LOW,HIGH,5000);	// turn mic status led on for 5 seconds
+	  toggle_status_LEDs(MIC_LED,HIGH,LOW,5000);	// turn mic status led on for 5 seconds
   }
   else
   {
-	  switch_status_LEDs_off(MIC_LED,HIGH);	// turn mic status led off
+	  switch_status_LEDs_off(MIC_LED,LOW);	// turn mic status led off
   }
   
 
@@ -3915,7 +3916,7 @@ void init_RTC()
 	}
 	else
 	{
-		toggle_status_LEDs(RTC_LED,LOW,HIGH,5000);	// turn RTC status led on for 5 seconds
+		toggle_status_LEDs(RTC_LED,HIGH,LOW,5000);	// turn RTC status led on for 5 seconds
 	}
 	
 }
@@ -4576,11 +4577,11 @@ static void powerOnTestSensors() {
 		delay(100);
 		debug_outln_info(F("Stopping PMS..."));
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
-		toggle_status_LEDs(PMS_LED,LOW,HIGH,2000);	// turn PMS status led on for 2 seconds
+		toggle_status_LEDs(PMS_LED,HIGH,LOW,2000);	// turn PMS status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(PMS_LED,HIGH);	// turn PMS status led off
+		switch_status_LEDs_off(PMS_LED,LOW);	// turn PMS status led off
 	}
 
 	if (cfg::hpm_read) {
@@ -4601,22 +4602,22 @@ static void powerOnTestSensors() {
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
-		toggle_status_LEDs(DHT_LED,LOW,HIGH,2000);	// turn DHT status led on for 2 seconds
+		toggle_status_LEDs(DHT_LED,HIGH,LOW,2000);	// turn DHT status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(DHT_LED,HIGH);	// turn DHT status led off
+		switch_status_LEDs_off(DHT_LED,LOW);	// turn DHT status led off
 	}
 
 	if (cfg::rtc_read) {
 		rtc.begin();
 		debug_outln_info(F("Read Time from RTC..."));
 		init_RTC();
-		toggle_status_LEDs(RTC_LED,LOW,HIGH,2000);	// turn RTC status led on for 2 seconds
+		toggle_status_LEDs(RTC_LED,HIGH,LOW,2000);	// turn RTC status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(RTC_LED,HIGH);	// turn RTC status led off
+		switch_status_LEDs_off(RTC_LED,LOW);	// turn RTC status led off
 	}
 
 	if (cfg::htu21d_read) {
@@ -4666,27 +4667,27 @@ static void powerOnTestSensors() {
 	if(cfg::sph0645_read){
 		debug_outln_info(F("Read SPH0645..."));
 		init_SPH0645();
-		toggle_status_LEDs(MIC_LED,LOW,HIGH,2000);	// turn mic status led on for 2 seconds
+		toggle_status_LEDs(MIC_LED,HIGH,LOW,2000);	// turn mic status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(MIC_LED,HIGH);	// turn mic status led off
+		switch_status_LEDs_off(MIC_LED,LOW);	// turn mic status led off
 	}
 
 	if (cfg::gps_read){
-		toggle_status_LEDs(GPS_LED,LOW,HIGH,2000);	// turn GPS status led on for 2 seconds
+		toggle_status_LEDs(GPS_LED,HIGH,LOW,2000);	// turn GPS status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(GPS_LED,HIGH);	// turn GPS status led off
+		switch_status_LEDs_off(GPS_LED,LOW);	// turn GPS status led off
 	}
 
 	if (cfg::sd_read){
-		toggle_status_LEDs(LOGGER_LED,LOW,HIGH,2000);	// turn logger status led on for 2 seconds
+		toggle_status_LEDs(LOGGER_LED,HIGH,LOW,2000);	// turn logger status led on for 2 seconds
 	}
 	else
 	{
-		switch_status_LEDs_off(LOGGER_LED,HIGH);	// turn logger status led off
+		switch_status_LEDs_off(LOGGER_LED,LOW);	// turn logger status led off
 	}
 
 }
@@ -4885,6 +4886,7 @@ void setup(void) {
 		SOFTWARE_VERSION += F("-STF");
 	}
 
+	init_PCF8575();
 	init_config();
 	init_display();
 	init_lcd();
@@ -5017,7 +5019,7 @@ void loop(void) {
 	if (cfg::rtc_read) {
 		obtain_sendTime();
 		Serial.println(timestamp);
-		delay(2000);
+		delay(30000);
 	}
   
 	if(cfg::sph0645_read){
