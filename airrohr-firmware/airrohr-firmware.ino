@@ -301,6 +301,9 @@ namespace cfg {
 			strcpy(fs_ssid, SSID_BASENAME);
 			strcat(fs_ssid, id);
 		}
+		else{
+			strcat(fs_ssid, id);
+		}
 	}
 }
 

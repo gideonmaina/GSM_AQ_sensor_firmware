@@ -11,7 +11,7 @@ const char WWW_PASSWORD[] PROGMEM = "feinstaub";
 #define WWW_BASICAUTH_ENABLED 0
 
 // Sensor Wifi config (config mode)
-#define FS_SSID ""
+#define FS_SSID "sensorsAFRICA-"
 #define FS_PWD ""
 
 // Where to send the data?
@@ -228,7 +228,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #endif
 
 // Device is WiFi Enabled
-#define WIFI_ENABLED 1
+#define WIFI_ENABLED 0
 
 //SPH0645 MEMS Microphone
 #define SPHO645_READ  1
