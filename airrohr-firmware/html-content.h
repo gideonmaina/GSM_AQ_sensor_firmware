@@ -71,7 +71,7 @@ const char EMPTY_ROW[] PROGMEM = "<tr><td colspan='3'>&nbsp;</td></tr>";
 
 const char WEB_PAGE_FOOTER[] PROGMEM = "<br/><br/><a href='/' style='display:inline;'>" INTL_BACK_TO_HOME "</a>"\
                 "<br/><br/><br/>"
-                "<a href='https://codefor.de/stuttgart/' target='_blank' rel='noreferrer' style='display:inline;background:none;color:black;box-shadow:none'>&copy; Open Knowledge Lab Stuttgart a.o. (Code for Germany)</a></div></body></html>\r\n";
+                "</div></body></html>\r\n";
 
 const char WEB_ROOT_PAGE_CONTENT[] PROGMEM = "<a href='/values'>{t}</a><br/>\
 <a href='/status'>{s}</a><br/>\
