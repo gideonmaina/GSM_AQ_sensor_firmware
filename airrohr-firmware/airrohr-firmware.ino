@@ -3753,7 +3753,9 @@ static void fetchSensorGPS(String& s) {
 /*****************************************************************
  * parse GPS sensor values for DEBUG                         *
  *****************************************************************/
-void parseGPSPayloadForDebug(String &gps_data){
+String parseGPSPayloadForDebug(String &gps_data){
+
+	RESERVE_STRING(s,SMALL_STR);
 
 	//parse GPS latitude
 	int start_GPS_lat = gps_data.indexOf('{');
@@ -3810,11 +3812,22 @@ void parseGPSPayloadForDebug(String &gps_data){
 	last_value_GPS_alt = Alt_value.toFloat();
 	last_value_GPS_date = Date_value;
 	last_value_GPS_time = Time_value;
+	last_value_GPS_timestamp = last_value_GPS_date;
+	last_value_GPS_timestamp += "T";
+	last_value_GPS_timestamp += last_value_GPS_time;
+
 	
 	debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
 	debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
 	debug_outln_info(F("Date: "), last_value_GPS_date);
 	debug_outln_info(F("Time "), last_value_GPS_time);
+
+	add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
+	add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
+	add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
+	add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
+
+	return s;
 }
 
 
@@ -3832,8 +3845,8 @@ String fetchSensorGPSFromAtmega(){
 		String gps_data = atmega328p.readString();
 		if(gps_data.indexOf("GPS")){
 			int last_character = gps_data.lastIndexOf(",");
-			s = gps_data.substring(0,(last_character+1));
-			parseGPSPayloadForDebug(s);
+			String formated_string = gps_data.substring(0,(last_character+1));
+			s = parseGPSPayloadForDebug(formated_string);
 			//Serial.println(s);
 		}
 	}
@@ -4857,11 +4870,8 @@ void sendRetreivedDataToCFA(String read_data){
  * READ DATA FROM LOG FILE AND SEND TO sensors.AFRICA API
  * *****************************************************************/
 void readLoggingFileAndSendToCFA(){
-	String esp_chipid_test = "932086";
 	init_SD();
-	File loggingFile = SD.open(esp_chipid_test + "_" + "sensor_readings.txt", FILE_READ);
-	String data = esp_chipid_test + "_" + "sensor_readings.txt";
-	Serial.println(data);
+	File loggingFile = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_READ);
 	if(loggingFile){
 		while (loggingFile.available()) {
 			String retreived_line = loggingFile.readStringUntil('\n');
