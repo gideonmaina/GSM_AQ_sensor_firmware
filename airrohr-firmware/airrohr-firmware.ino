@@ -285,6 +285,7 @@ namespace cfg {
 	unsigned total_logs = 0;
 	unsigned daily_logs = 0;
 	unsigned current_date = 0;
+	unsigned log_file_id = 0;
 
 	void initNonTrivials(const char* id) {
 		strcpy(cfg::current_lang, CURRENT_LANG);
@@ -4819,7 +4820,7 @@ void openLoggingFile()
 	{
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
 		delay(5000);
 	}
 }
@@ -4871,7 +4872,7 @@ void sendRetreivedDataToCFA(String read_data){
  * *****************************************************************/
 void readLoggingFileAndSendToCFA(){
 	init_SD();
-	File loggingFile = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_READ);
+	File loggingFile = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_READ);
 	if(loggingFile){
 		while (loggingFile.available()) {
 			String retreived_line = loggingFile.readStringUntil('\n');
@@ -5031,6 +5032,10 @@ void setup(void) {
 #endif
 	if(cfg::wifi_enabled && cfg::send_logged_data){
 		readLoggingFileAndSendToCFA();
+		cfg::log_file_id += 1;
+		cfg::wifi_enabled = 0;
+		cfg::send_logged_data = 0;
+		writeConfig();
 	}
 	starttime = millis();									// store the start time
 	last_update_attempt = time_point_device_start_ms = starttime;

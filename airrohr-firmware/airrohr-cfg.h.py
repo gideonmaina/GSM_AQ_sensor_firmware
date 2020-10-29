@@ -72,6 +72,7 @@ Bool		ssl_influx
 UInt        total_logs
 UInt        daily_logs
 UInt        current_date
+UInt        log_file_id
 """
 
 with open("airrohr-cfg.h", "w") as h:
