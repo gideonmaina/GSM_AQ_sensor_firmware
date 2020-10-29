@@ -2676,6 +2676,30 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 }
 
 /*****************************************************************
+ * Send single sensor data from logging file to sensors.AFRICA api
+ * ***************************************************************/
+static unsigned long sendCFAFromLoggingFile(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
+{
+	unsigned long sum_send_time = 0;
+
+	if (cfg::send2cfa && data.length())
+	{
+		RESERVE_STRING(data_CFA, LARGE_STR);
+
+		debug_outln_info(F("## Sending to sensors.AFRICA - "), sensorname);
+		data_CFA += data;
+		data_CFA.remove(data_CFA.length() - 1);
+		data_CFA.replace(replace_str, emptyString);
+		Serial.println(data_CFA);
+
+		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
+	}
+
+	return sum_send_time;
+}
+
+
+/*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
  *****************************************************************/
 static unsigned long sendCFA(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
@@ -4784,6 +4808,69 @@ void openLoggingFile()
 	}
 }
 
+/*************************************************************************
+ * PARSE DATA RETREIVED FROM LOGGING FILE INTO FORMAT ACCEPTED BY CFA API
+ * ***********************************************************************/
+String parseRetreivedData(String read_data){
+	String json_data;
+	int data_end_index = read_data.lastIndexOf("}");
+	if(data_end_index != -1){
+		json_data = read_data.substring(0,data_end_index+2);
+	}
+	return json_data;
+}
+
+/*************************************************************************
+ * DETERMINE WHICH SENSOR THE LINE OF DATA READ BELONGS TO AND SEND TO CFA
+ * ***********************************************************************/
+void sendRetreivedDataToCFA(String read_data){
+	if(read_data.indexOf("SPH0645") >= 0){
+		String SPH0645_payload = parseRetreivedData(read_data);
+		if(!SPH0645_payload.isEmpty()){
+			sendCFAFromLoggingFile(SPH0645_payload, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+		}
+	}
+	if(read_data.indexOf("PMSx003") >= 0 ){
+		String PMSx003_payload = parseRetreivedData(read_data);
+		if(!PMSx003_payload.isEmpty()){
+			sendCFAFromLoggingFile(PMSx003_payload, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+		}
+	}
+	if(read_data.indexOf("DHT22") >= 0){
+		String DHT_payload = parseRetreivedData(read_data);
+		if(!DHT_payload.isEmpty()){
+			sendCFAFromLoggingFile(DHT_payload, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+		}
+	}
+	if(read_data.indexOf("GPS") >= 0){
+		String GPS_payload = parseRetreivedData(read_data);
+		if(!GPS_payload.isEmpty()){
+			sendCFAFromLoggingFile(GPS_payload, GPS_API_PIN, F("GPS"), "GPS_");
+		}
+	}
+}
+
+/*******************************************************************
+ * READ DATA FROM LOG FILE AND SEND TO sensors.AFRICA API
+ * *****************************************************************/
+void readLoggingFileAndSendToCFA(){
+	String esp_chipid_test = "932086";
+	init_SD();
+	File loggingFile = SD.open(esp_chipid_test + "_" + "sensor_readings.txt", FILE_READ);
+	String data = esp_chipid_test + "_" + "sensor_readings.txt";
+	Serial.println(data);
+	if(loggingFile){
+		while (loggingFile.available()) {
+			String retreived_line = loggingFile.readStringUntil('\n');
+			sendRetreivedDataToCFA(retreived_line);
+		}
+		loggingFile.close();
+	}
+	else{
+		Serial.println("Failed to open file");
+	}
+}
+
 static unsigned long sendDataToOptionalApis(const String &data) {
 	unsigned long sum_send_time = 0;
 
@@ -5022,7 +5109,6 @@ void loop(void) {
 	if (cfg::rtc_read) {
 		obtain_sendTime();
 		Serial.println(timestamp);
-		delay(30000);
 	}
   
 	if(cfg::sph0645_read){
