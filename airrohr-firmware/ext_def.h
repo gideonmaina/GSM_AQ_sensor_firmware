@@ -227,6 +227,9 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
+//Activate device to send logged data
+#define SEND_LOGGED_DATA 0
+
 // Device is WiFi Enabled
 #define WIFI_ENABLED 0
 

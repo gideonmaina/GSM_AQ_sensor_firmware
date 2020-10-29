@@ -33,6 +33,7 @@ enum ConfigShapeId {
 	Config_fs_pwd,
 	Config_www_basicauth_enabled,
 	Config_wifi_enabled,
+	Config_send_logged_data,
 	Config_sph0645_read,
 	Config_dht_read,
 	Config_htu21d_read,
@@ -104,6 +105,7 @@ const char CFG_KEY_FS_SSID[] PROGMEM = "fs_ssid";
 const char CFG_KEY_FS_PWD[] PROGMEM = "fs_pwd";
 const char CFG_KEY_WWW_BASICAUTH_ENABLED[] PROGMEM = "www_basicauth_enabled";
 const char CFG_KEY_WIFI_ENABLED[] PROGMEM = "wifi_enabled";
+const char CFG_KEY_SEND_LOGGED_DATA[] PROGMEM = "send_logged_data";
 const char CFG_KEY_SPH0645_READ[] PROGMEM = "sph0645_read";
 const char CFG_KEY_DHT_READ[] PROGMEM = "dht_read";
 const char CFG_KEY_HTU21D_READ[] PROGMEM = "htu21d_read";
@@ -175,6 +177,7 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Password, sizeof(cfg::fs_pwd)-1, FPSTR(CFG_KEY_FS_PWD), cfg::fs_pwd },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_WWW_BASICAUTH_ENABLED), &cfg::www_basicauth_enabled },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_WIFI_ENABLED), &cfg::wifi_enabled },
+	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SEND_LOGGED_DATA), &cfg::send_logged_data },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_SPH0645_READ), &cfg::sph0645_read },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_DHT_READ), &cfg::dht_read },
 	{ Config_Type_Bool, 0, FPSTR(CFG_KEY_HTU21D_READ), &cfg::htu21d_read },

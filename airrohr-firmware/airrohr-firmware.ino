@@ -246,6 +246,7 @@ namespace cfg {
 	bool use_beta = USE_BETA;
 
 	bool wifi_enabled = WIFI_ENABLED;
+	bool send_logged_data = SEND_LOGGED_DATA;
 
 	// (in)active displays
 	bool has_display = HAS_DISPLAY;											// OLED with SSD1306 and I2C
@@ -1507,6 +1508,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(WEB_B_BR);
 
 	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
+	add_form_checkbox(Config_send_logged_data, FPSTR(INTL_SEND_LOGGED_DATA));
 	add_form_checkbox(Config_has_display, FPSTR(INTL_DISPLAY));
 	add_form_checkbox(Config_has_sh1106, FPSTR(INTL_SH1106));
 	add_form_checkbox(Config_has_flipped_display, FPSTR(INTL_FLIP_DISPLAY));
@@ -1684,6 +1686,7 @@ static void webserver_config_send_body_post(String& page_content) {
 	page_content = emptyString;
 
 	add_line_value_bool(page_content, FPSTR(INTL_ENABLE_WIFI), wifi_enabled);
+	add_line_value_bool(page_content, FPSTR(INTL_SEND_LOGGED_DATA), send_logged_data);
 	add_line_value_bool(page_content, FPSTR(INTL_DISPLAY), has_display);
 	add_line_value_bool(page_content, FPSTR(INTL_SH1106), has_sh1106);
 	add_line_value_bool(page_content, FPSTR(INTL_FLIP_DISPLAY), has_flipped_display);
