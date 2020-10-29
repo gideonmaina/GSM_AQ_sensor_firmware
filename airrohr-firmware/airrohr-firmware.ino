@@ -5036,6 +5036,7 @@ void setup(void) {
 		cfg::wifi_enabled = 0;
 		cfg::send_logged_data = 0;
 		writeConfig();
+		delay(300000); //Delay for 5 minutes before starting another sample cycle.
 	}
 	starttime = millis();									// store the start time
 	last_update_attempt = time_point_device_start_ms = starttime;
