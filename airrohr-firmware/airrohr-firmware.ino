@@ -5019,7 +5019,9 @@ void setup(void) {
 	wdt_enable(120000);
 #endif
 #endif
-
+	if(cfg::wifi_enabled && cfg::send_logged_data){
+		readLoggingFileAndSendToCFA();
+	}
 	starttime = millis();									// store the start time
 	last_update_attempt = time_point_device_start_ms = starttime;
 	last_display_millis = starttime_SDS = starttime;
