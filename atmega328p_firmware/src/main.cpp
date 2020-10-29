@@ -457,6 +457,8 @@ void fetchSensorGPS(){
 	add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
 	add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
 	add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
+	add_Value2Json(s, F("GPS_date"), last_value_GPS_date);
+	add_Value2Json(s, F("GPS_time"), last_value_GPS_time);
 	
 	send_serial_data(s);
 	read_gps = false;
