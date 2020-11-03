@@ -10,6 +10,7 @@ String		fs_ssid
 Password		fs_pwd
 Bool		www_basicauth_enabled
 Bool        wifi_enabled
+Bool        send_logged_data
 Bool        sph0645_read
 Bool		dht_read
 Bool		htu21d_read
@@ -71,6 +72,7 @@ Bool		ssl_influx
 UInt        total_logs
 UInt        daily_logs
 UInt        current_date
+UInt        log_file_id
 """
 
 with open("airrohr-cfg.h", "w") as h:

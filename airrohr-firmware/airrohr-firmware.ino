@@ -194,7 +194,7 @@ namespace cfg {
 	unsigned debug = DEBUG;
 
 	unsigned time_for_wifi_config = 600000;
-	unsigned sending_intervall_ms = 145000;
+	unsigned sending_intervall_ms = 30000;
 
 	char current_lang[3];
 
@@ -246,6 +246,7 @@ namespace cfg {
 	bool use_beta = USE_BETA;
 
 	bool wifi_enabled = WIFI_ENABLED;
+	bool send_logged_data = SEND_LOGGED_DATA;
 
 	// (in)active displays
 	bool has_display = HAS_DISPLAY;											// OLED with SSD1306 and I2C
@@ -284,6 +285,7 @@ namespace cfg {
 	unsigned total_logs = 0;
 	unsigned daily_logs = 0;
 	unsigned current_date = 0;
+	unsigned log_file_id = 0;
 
 	void initNonTrivials(const char* id) {
 		strcpy(cfg::current_lang, CURRENT_LANG);
@@ -1507,6 +1509,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(WEB_B_BR);
 
 	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
+	add_form_checkbox(Config_send_logged_data, FPSTR(INTL_SEND_LOGGED_DATA));
 	add_form_checkbox(Config_has_display, FPSTR(INTL_DISPLAY));
 	add_form_checkbox(Config_has_sh1106, FPSTR(INTL_SH1106));
 	add_form_checkbox(Config_has_flipped_display, FPSTR(INTL_FLIP_DISPLAY));
@@ -1684,6 +1687,7 @@ static void webserver_config_send_body_post(String& page_content) {
 	page_content = emptyString;
 
 	add_line_value_bool(page_content, FPSTR(INTL_ENABLE_WIFI), wifi_enabled);
+	add_line_value_bool(page_content, FPSTR(INTL_SEND_LOGGED_DATA), send_logged_data);
 	add_line_value_bool(page_content, FPSTR(INTL_DISPLAY), has_display);
 	add_line_value_bool(page_content, FPSTR(INTL_SH1106), has_sh1106);
 	add_line_value_bool(page_content, FPSTR(INTL_FLIP_DISPLAY), has_flipped_display);
@@ -2674,6 +2678,30 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 
 	return millis() - start_send;
 }
+
+/*****************************************************************
+ * Send single sensor data from logging file to sensors.AFRICA api
+ * ***************************************************************/
+static unsigned long sendCFAFromLoggingFile(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
+{
+	unsigned long sum_send_time = 0;
+
+	if (cfg::send2cfa && data.length())
+	{
+		RESERVE_STRING(data_CFA, LARGE_STR);
+
+		debug_outln_info(F("## Sending to sensors.AFRICA - "), sensorname);
+		data_CFA += data;
+		data_CFA.remove(data_CFA.length() - 1);
+		data_CFA.replace(replace_str, emptyString);
+		Serial.println(data_CFA);
+
+		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
+	}
+
+	return sum_send_time;
+}
+
 
 /*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
@@ -3726,7 +3754,9 @@ static void fetchSensorGPS(String& s) {
 /*****************************************************************
  * parse GPS sensor values for DEBUG                         *
  *****************************************************************/
-void parseGPSPayloadForDebug(String &gps_data){
+String parseGPSPayloadForDebug(String &gps_data){
+
+	RESERVE_STRING(s,SMALL_STR);
 
 	//parse GPS latitude
 	int start_GPS_lat = gps_data.indexOf('{');
@@ -3783,11 +3813,22 @@ void parseGPSPayloadForDebug(String &gps_data){
 	last_value_GPS_alt = Alt_value.toFloat();
 	last_value_GPS_date = Date_value;
 	last_value_GPS_time = Time_value;
+	last_value_GPS_timestamp = last_value_GPS_date;
+	last_value_GPS_timestamp += "T";
+	last_value_GPS_timestamp += last_value_GPS_time;
+
 	
 	debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
 	debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
 	debug_outln_info(F("Date: "), last_value_GPS_date);
 	debug_outln_info(F("Time "), last_value_GPS_time);
+
+	add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
+	add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
+	add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
+	add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
+
+	return s;
 }
 
 
@@ -3805,8 +3846,8 @@ String fetchSensorGPSFromAtmega(){
 		String gps_data = atmega328p.readString();
 		if(gps_data.indexOf("GPS")){
 			int last_character = gps_data.lastIndexOf(",");
-			s = gps_data.substring(0,(last_character+1));
-			parseGPSPayloadForDebug(s);
+			String formated_string = gps_data.substring(0,(last_character+1));
+			s = parseGPSPayloadForDebug(formated_string);
 			//Serial.println(s);
 		}
 	}
@@ -4779,8 +4820,68 @@ void openLoggingFile()
 	{
 		init_SD();
 		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
+		sensor_readings = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
 		delay(5000);
+	}
+}
+
+/*************************************************************************
+ * PARSE DATA RETREIVED FROM LOGGING FILE INTO FORMAT ACCEPTED BY CFA API
+ * ***********************************************************************/
+String parseRetreivedData(String read_data){
+	String json_data;
+	int data_end_index = read_data.lastIndexOf("}");
+	if(data_end_index != -1){
+		json_data = read_data.substring(0,data_end_index+2);
+	}
+	return json_data;
+}
+
+/*************************************************************************
+ * DETERMINE WHICH SENSOR THE LINE OF DATA READ BELONGS TO AND SEND TO CFA
+ * ***********************************************************************/
+void sendRetreivedDataToCFA(String read_data){
+	if(read_data.indexOf("SPH0645") >= 0){
+		String SPH0645_payload = parseRetreivedData(read_data);
+		if(!SPH0645_payload.isEmpty()){
+			sendCFAFromLoggingFile(SPH0645_payload, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
+		}
+	}
+	if(read_data.indexOf("PMSx003") >= 0 ){
+		String PMSx003_payload = parseRetreivedData(read_data);
+		if(!PMSx003_payload.isEmpty()){
+			sendCFAFromLoggingFile(PMSx003_payload, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+		}
+	}
+	if(read_data.indexOf("DHT22") >= 0){
+		String DHT_payload = parseRetreivedData(read_data);
+		if(!DHT_payload.isEmpty()){
+			sendCFAFromLoggingFile(DHT_payload, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+		}
+	}
+	if(read_data.indexOf("GPS") >= 0){
+		String GPS_payload = parseRetreivedData(read_data);
+		if(!GPS_payload.isEmpty()){
+			sendCFAFromLoggingFile(GPS_payload, GPS_API_PIN, F("GPS"), "GPS_");
+		}
+	}
+}
+
+/*******************************************************************
+ * READ DATA FROM LOG FILE AND SEND TO sensors.AFRICA API
+ * *****************************************************************/
+void readLoggingFileAndSendToCFA(){
+	init_SD();
+	File loggingFile = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_READ);
+	if(loggingFile){
+		while (loggingFile.available()) {
+			String retreived_line = loggingFile.readStringUntil('\n');
+			sendRetreivedDataToCFA(retreived_line);
+		}
+		loggingFile.close();
+	}
+	else{
+		Serial.println("Failed to open file");
 	}
 }
 
@@ -4929,7 +5030,14 @@ void setup(void) {
 	wdt_enable(120000);
 #endif
 #endif
-
+	if(cfg::wifi_enabled && cfg::send_logged_data){
+		readLoggingFileAndSendToCFA();
+		cfg::log_file_id += 1;
+		cfg::wifi_enabled = 0;
+		cfg::send_logged_data = 0;
+		writeConfig();
+		delay(300000); //Delay for 5 minutes before starting another sample cycle.
+	}
 	starttime = millis();									// store the start time
 	last_update_attempt = time_point_device_start_ms = starttime;
 	last_display_millis = starttime_SDS = starttime;
@@ -5022,7 +5130,6 @@ void loop(void) {
 	if (cfg::rtc_read) {
 		obtain_sendTime();
 		Serial.println(timestamp);
-		delay(30000);
 	}
   
 	if(cfg::sph0645_read){

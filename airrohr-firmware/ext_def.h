@@ -227,6 +227,9 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
+//Activate device to send logged data
+#define SEND_LOGGED_DATA 0
+
 // Device is WiFi Enabled
 #define WIFI_ENABLED 0
 
@@ -255,11 +258,11 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_API_PIN 5
 
 // SDS011, the more expensive version of the particle sensor
-#define SDS_READ 1
+#define SDS_READ 0
 #define SDS_API_PIN 1
 
 // PMS1003, PMS300, 3PMS5003, PMS6003, PMS7003
-#define PMS_READ 0
+#define PMS_READ 1
 #define PMS_API_PIN 1
 
 // Honeywell PM sensor
@@ -295,7 +298,7 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define DNMS_CORRECTION "0.0"
 
 // GPS, preferred Neo-6M
-#define GPS_READ 0
+#define GPS_READ 1
 #define GPS_API_PIN 9
 
 // MHZ19 CO2 sensor
