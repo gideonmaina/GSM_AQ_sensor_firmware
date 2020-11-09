@@ -11,7 +11,6 @@ Password		fs_pwd
 Bool		www_basicauth_enabled
 Bool        wifi_enabled
 Bool        send_logged_data
-Bool        sph0645_read
 Bool		dht_read
 Bool		htu21d_read
 Bool		ppd_read

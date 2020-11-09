@@ -115,7 +115,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include "./bmx280_i2c.h"
 #include "./sps30_i2c.h"
 #include "./dnms_i2c.h"
-#include "./SPH0645.h"
 
 #if defined(INTL_BG)
 #include "intl_bg.h"
@@ -212,7 +211,6 @@ namespace cfg {
 	char fs_pwd[LEN_CFG_PASSWORD] = FS_PWD;
 
 	// (in)active sensors
-	bool sph0645_read = SPHO645_READ;
 	bool dht_read = DHT_READ;
 	bool htu21d_read = HTU21D_READ;
 	bool ppd_read = PPD_READ;
@@ -517,9 +515,6 @@ float value_SPS30_N25 = 0.0;
 float value_SPS30_N4 = 0.0;
 float value_SPS30_N10 = 0.0;
 float value_SPS30_TS = 0.0;
-
-//Variable to store SPH0645 Mic value
-float value_SPH0645 = 0.0;
 
 
 uint16_t SPS30_measurement_count = 0;
@@ -1537,7 +1532,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
-	add_form_checkbox_sensor(Config_sph0645_read, FPSTR(INTL_SPH0645));
 	add_form_checkbox_sensor(Config_dht_read, FPSTR(INTL_DHT22));
 	add_form_checkbox_sensor(Config_htu21d_read, FPSTR(INTL_HTU21D));
 	add_form_checkbox_sensor(Config_bmx280_read, FPSTR(INTL_BMX280));
@@ -1667,7 +1661,6 @@ static void webserver_config_send_body_post(String& page_content) {
 
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Sensor.Community"), send2dusti);
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Madavi"), send2madavi);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SPH0645), sph0645_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DHT22), dht_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_HTU21D), htu21d_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SDS011), sds_read);
@@ -1952,10 +1945,6 @@ static void webserver_values() {
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LEQ_A), check_display_value(last_value_dnms_laeq, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MIN), check_display_value(last_value_dnms_la_min, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MAX), check_display_value(last_value_dnms_la_max, -1, 1, 0), unit_LA);
-		}
-		if (cfg::sph0645_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPH0645), FPSTR(INTL_SPH0645), check_display_value(value_SPH0645, -1, 1, 0), unit_LA);
 		}
 		if (cfg::gps_read) {
 			page_content += FPSTR(EMPTY_ROW);
@@ -3883,66 +3872,6 @@ void switch_status_LEDs_off(uint8_t LED, bool off_state) {
 	pcf8575.digitalWrite(LED,LOW);
 }
 
-/****************************************************************
- * INITIALIZE SPH0645 MICROPHONE
- * **************************************************************/
-void init_SPH0645(){
-	rx_buf_cnt = 0;
-	pinMode(I2SI_WS, OUTPUT);
-	pinMode(I2SI_BCK, OUTPUT);
-	pinMode(I2SI_DATA, INPUT);
-
-	slc_init();
-	i2s_init();
-}
-
-/****************************************************************
- * RE-INITIALIZE SPH0645 MICROPHONE
- * **************************************************************/
-void Reinit_SPH0645(){
-	pinMode(I2SI_WS, OUTPUT);
-	pinMode(I2SI_BCK, OUTPUT);
-	pinMode(I2SI_DATA, INPUT);
-
-	i2s_init();
-}
-
-
-/****************************************************************
- * OBTAIN SPH0645 MIC VALUE
- * **************************************************************/
-
-void fetchSensorSPH0645(String& s){
-	
-	if (rx_buf_flag) {
-    for (int x = 0; x < SLC_BUF_LEN; x++) {
-      if (i2s_slc_buf_pntr[rx_buf_idx][x] > 0) {
-	 	float sensor_value = convert(i2s_slc_buf_pntr[rx_buf_idx][x]);
-		 value_SPH0645 = convert_to_dB(sensor_value);
-		  }
-	 else{
-		 debug_outln_error(F("No Mic Value available"));
-		 Reinit_SPH0645(); //Give SPI bus pins back to the MIC
-		 delay(1000);
-	 }
-    }
-    rx_buf_flag = false;
-  }
-
-  if(send_now){
-	  debug_outln_info(F("noise_Leq: "), String(value_SPH0645));
-	  add_Value2Json(s, F("noise_Leq"), String(value_SPH0645));
-	  obtain_sendTime();
-	  toggle_status_LEDs(MIC_LED,HIGH,LOW,5000);	// turn mic status led on for 5 seconds
-  }
-  else
-  {
-	  switch_status_LEDs_off(MIC_LED,LOW);	// turn mic status led off
-  }
-  
-
-}
-
 /*****************************************************************
  * Initialize RTC                                        		 *
  *****************************************************************/
@@ -4708,16 +4637,6 @@ static void powerOnTestSensors() {
 		initDNMS();
 	}
 
-	if(cfg::sph0645_read){
-		debug_outln_info(F("Read SPH0645..."));
-		init_SPH0645();
-		toggle_status_LEDs(MIC_LED,HIGH,LOW,2000);	// turn mic status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(MIC_LED,LOW);	// turn mic status led off
-	}
-
 	if (cfg::gps_read){
 		toggle_status_LEDs(GPS_LED,HIGH,LOW,2000);	// turn GPS status led on for 2 seconds
 	}
@@ -4841,12 +4760,6 @@ String parseRetreivedData(String read_data){
  * DETERMINE WHICH SENSOR THE LINE OF DATA READ BELONGS TO AND SEND TO CFA
  * ***********************************************************************/
 void sendRetreivedDataToCFA(String read_data){
-	if(read_data.indexOf("SPH0645") >= 0){
-		String SPH0645_payload = parseRetreivedData(read_data);
-		if(!SPH0645_payload.isEmpty()){
-			sendCFAFromLoggingFile(SPH0645_payload, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
-		}
-	}
 	if(read_data.indexOf("PMSx003") >= 0 ){
 		String PMSx003_payload = parseRetreivedData(read_data);
 		if(!PMSx003_payload.isEmpty()){
@@ -5048,7 +4961,7 @@ void setup(void) {
  *****************************************************************/
 void loop(void) {
 	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS, result_SPH0645;
+	String result_GPS, result_DNMS;
 
 	unsigned sum_send_time = 0;
 
@@ -5131,11 +5044,7 @@ void loop(void) {
 		obtain_sendTime();
 		Serial.println(timestamp);
 	}
-  
-	if(cfg::sph0645_read){
-		fetchSensorSPH0645(result_SPH0645);
-	}
-
+	
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
 		starttime_SDS = act_milli;
 		if (cfg::sds_read) {
@@ -5198,17 +5107,6 @@ void loop(void) {
 
 		//Open SD-card file for logging
 		openLoggingFile(); 
-
-		if(cfg::sph0645_read){
-			data += result_SPH0645;
-			if(cfg::send2sd){
-				sum_send_time += sendSD(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
-			} 
-      		if(cfg::wifi_enabled){
-				sum_send_time += sendCFA(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SPH0645_");
-				sum_send_time += sendSensorCommunity(result_SPH0645, SPH0645_API_PIN, FPSTR(SENSORS_SPH0645), "SHP0645_");
-			  } 
-		}
 
 		if (cfg::ppd_read) {
 			data += result_PPD;

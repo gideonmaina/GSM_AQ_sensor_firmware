@@ -151,11 +151,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM1 GPS_SERIAL_TX
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 
-//define I2S pins for the SPH0645 MIC
-#define I2SI_DATA         12    // I2S data on GPIO12
-#define I2SI_BCK          13    // I2S clk on GPIO13
-#define I2SI_WS           14    // I2S select on GPIO14
-
 // define pins for status LEDs
 #define GPS_LED P0
 #define LOGGER_LED P1
@@ -232,10 +227,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 
 // Device is WiFi Enabled
 #define WIFI_ENABLED 0
-
-//SPH0645 MEMS Microphone
-#define SPHO645_READ  1
-#define SPH0645_API_PIN 15
 
 // DHT22, temperature, humidity
 #define DHT_READ 1
