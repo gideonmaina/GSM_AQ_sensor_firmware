@@ -133,10 +133,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_RX D0
 #define GPS_SERIAL_TX D0
 
-// define pins for RTC I2C interface
-#define RTC_PIN_SDA D2
-#define RTC_PIN_SCL D1
-
 // define pins for the micro_sd logger shield
 #define SD_SCK D5
 #define SD_MISO D6
@@ -154,7 +150,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 // define pins for status LEDs
 #define GPS_LED P0
 #define LOGGER_LED P1
-#define RTC_LED P2
 #define MIC_LED P3
 #define PMS_LED P4
 #define DHT_LED P5
@@ -232,10 +227,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define DHT_READ 1
 #define DHT_TYPE DHT22
 #define DHT_API_PIN 7
-
-// RTC
-#define RTC_READ 1
-#define RTC_API_PIN 2
 
 // MicroSD
 #define SD_READ 1

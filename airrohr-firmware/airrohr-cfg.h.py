@@ -25,7 +25,6 @@ Bool		ds18b20_read
 Bool		dnms_read
 String		dnms_correction
 Bool		gps_read
-Bool		rtc_read
 Bool        sd_read
 Bool		send2cfa
 Bool		ssl_cfa

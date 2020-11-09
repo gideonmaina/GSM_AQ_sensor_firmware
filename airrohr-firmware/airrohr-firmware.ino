@@ -103,7 +103,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <DNSServer.h>
 #include "./DHT.h"
 #include <PCF8575.h>
-#include <RTClib.h>
 #include <SD.h>
 #include <SPI.h>
 #include <Adafruit_HTU21DF.h>
@@ -225,7 +224,6 @@ namespace cfg {
 	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
-	bool rtc_read = RTC_READ;
 	bool sd_read = SD_READ;
 
 	// send to "APIs"
@@ -324,7 +322,6 @@ bool bmx280_init_failed = false;
 bool sht3x_init_failed = false;
 bool dnms_init_failed = false;
 bool gps_init_failed = false;
-bool rtc_init_failed = false;
 bool airrohr_selftest_failed = false;
 
 #if defined(ESP8266)
@@ -409,11 +406,6 @@ DallasTemperature ds18b20(&oneWire);
  * GPS declaration                                               *
  *****************************************************************/
 TinyGPSPlus gps;
-
-/*****************************************************************
- * RTC declaration                                               *
- *****************************************************************/
-RTC_DS3231 rtc;
 
 /*****************************************************************
  * MicroSD declaration                                           *
@@ -538,14 +530,11 @@ double last_value_GPS_alt = -1000.0;
 String last_value_GPS_date;
 String last_value_GPS_time;
 String last_value_GPS_timestamp;
-String timestamp;
 String last_data_string;
 int last_signal_strength;
 bool readGPSFromAtmega = true;
 
 bool readDHTFromAtmega = true;
-
-char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 String esp_chipid;
 String last_value_SDS_version;
@@ -902,12 +891,6 @@ void resetDailyLogCounter(bool oldconfig = false){
 		ConfigShapeEntry c;
 		memcpy_P(&c, &configShape[Config_current_date], sizeof(ConfigShapeEntry));
 		*(c.cfg_val.as_uint) = json[c.cfg_key].as<unsigned int>();
-		DateTime now = rtc.now();
-		if(now.day() != cfg::current_date){
-			cfg::current_date = now.day();
-			cfg::daily_logs = 0;
-			writeConfig();
-		}
 	}
 }
 
@@ -2642,10 +2625,6 @@ static unsigned long sendSD(const String &data, const int pin, const __FlashStri
 		data_SD += data;
 		data_SD.remove(data_SD.length() - 1);
 		data_SD.replace(replace_str, emptyString);
-		data_SD += "], \"timestamp\":";
-		data_SD += "\"";
-		data_SD += timestamp;
-		data_SD += "\"";
 		data_SD += "}";
 		Serial.println(data_SD);
 
@@ -2708,10 +2687,6 @@ static unsigned long sendCFA(const String &data, const int pin, const __FlashStr
 		data_CFA += data;
 		data_CFA.remove(data_CFA.length() - 1);
 		data_CFA.replace(replace_str, emptyString);
-		data_CFA += "], \"timestamp\":";
-		data_CFA += "\"";
-		data_CFA += timestamp;
-		data_CFA += "\"";
 		data_CFA += "}";
 		Serial.println(data_CFA);
 		
@@ -2895,9 +2870,6 @@ String fetchSensorDHTFromAtmega(){
 	}
 
 	toggle_status_LEDs(DHT_LED,HIGH,LOW,5000);	// turn DHT status LED on for 5 seconds
-
-	obtain_sendTime();
-	toggle_status_LEDs(RTC_LED,HIGH,LOW,2000);	// turn RTC status LED on for 2 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
@@ -3353,7 +3325,6 @@ String fetchSensorPMSFromAtmega(){
 			}
 		}
 
-		obtain_sendTime();
 		toggle_status_LEDs(PMS_LED,HIGH,LOW,5000);	// turn PMS status led on for 5 seconds
 	}
 	else
@@ -3841,7 +3812,6 @@ String fetchSensorGPSFromAtmega(){
 		}
 	}
 
-	obtain_sendTime();
 	toggle_status_LEDs(GPS_LED,HIGH,LOW,5000);	// turn GPS status LED on for 5 seconds
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
@@ -3856,7 +3826,6 @@ void init_PCF8575() {
 	pcf8575.begin();
 	pcf8575.pinMode(GPS_LED, OUTPUT);
 	pcf8575.pinMode(LOGGER_LED, OUTPUT);
-	pcf8575.pinMode(RTC_LED, OUTPUT);
 	pcf8575.pinMode(MIC_LED, OUTPUT);
 	pcf8575.pinMode(PMS_LED, OUTPUT);
 	pcf8575.pinMode(DHT_LED, OUTPUT);
@@ -3870,36 +3839,6 @@ void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16
 
 void switch_status_LEDs_off(uint8_t LED, bool off_state) {
 	pcf8575.digitalWrite(LED,LOW);
-}
-
-/*****************************************************************
- * Initialize RTC                                        		 *
- *****************************************************************/
-void init_RTC()
-{
-	pinMode(RTC_PIN_SDA, OUTPUT);
-	pinMode(RTC_PIN_SCL, OUTPUT);
-	if (!rtc.begin())
-	{
-		// sets time to the date this sketch was compiled
-		 rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-		// Set explicit time for example 19th May 2020 at 12 noon.
-		// rtc.adjust(DateTime(2020, 5, 19, 12, 00, 00));
-		switch_status_LEDs_off(RTC_LED,HIGH);	// turn rtc status led off
-	}
-	else
-	{
-		toggle_status_LEDs(RTC_LED,HIGH,LOW,5000);	// turn RTC status led on for 5 seconds
-	}
-	
-}
-
-void obtain_sendTime()
-{
-	char buf[40];
-	DateTime now = rtc.now();
-	sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-	timestamp = buf;
 }
 
 /*****************************************************************
@@ -4582,17 +4521,6 @@ static void powerOnTestSensors() {
 		switch_status_LEDs_off(DHT_LED,LOW);	// turn DHT status led off
 	}
 
-	if (cfg::rtc_read) {
-		rtc.begin();
-		debug_outln_info(F("Read Time from RTC..."));
-		init_RTC();
-		toggle_status_LEDs(RTC_LED,HIGH,LOW,2000);	// turn RTC status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(RTC_LED,LOW);	// turn RTC status led off
-	}
-
 	if (cfg::htu21d_read) {
 		debug_outln_info(F("Read HTU21D..."));
 		// begin() might return false when using Si7021
@@ -5039,12 +4967,6 @@ void loop(void) {
 		fetchSensorPPD(result_PPD);
 	}
 
-
-	if (cfg::rtc_read) {
-		obtain_sendTime();
-		Serial.println(timestamp);
-	}
-	
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
 		starttime_SDS = act_milli;
 		if (cfg::sds_read) {
