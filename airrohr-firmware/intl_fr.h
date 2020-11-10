@@ -36,8 +36,6 @@ const char INTL_DNMS_CORRECTION[] PROGMEM ="Valeur corrigée en dB(A)";
 const char INTL_NEO6M[] PROGMEM = "GPS (NEO 6M)";
 const char INTL_BASICAUTH[] PROGMEM = "Activer BasicAuth";
 
-const char INTL_ENABLE_WIFI[] PROGMEM = "WIFI ENABLED";
-const char INTL_SEND_LOGGED_DATA[] PROGMEM = "SEND LOGGED DATA";
 const char INTL_FS_WIFI_DESCRIPTION[] PROGMEM = "Nom du capteur wifi en mode de configuration";
 const char INTL_FS_WIFI_NAME[] PROGMEM = "Nom";
 const char INTL_MORE_SETTINGS[] PROGMEM ="Autres paramètres";

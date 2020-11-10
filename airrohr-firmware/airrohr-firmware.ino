@@ -103,7 +103,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <DNSServer.h>
 #include "./DHT.h"
 #include <PCF8575.h>
-#include <SD.h>
 #include <SPI.h>
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
@@ -224,7 +223,6 @@ namespace cfg {
 	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gps_read = GPS_READ;
-	bool sd_read = SD_READ;
 
 	// send to "APIs"
 	bool send2cfa = SEND2CFA;
@@ -236,13 +234,9 @@ namespace cfg {
 	bool send2custom = SEND2CUSTOM;
 	bool send2influx = SEND2INFLUX;
 	bool send2csv = SEND2CSV;
-	bool send2sd = SEND2SD;
 
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
-
-	bool wifi_enabled = WIFI_ENABLED;
-	bool send_logged_data = SEND_LOGGED_DATA;
 
 	// (in)active displays
 	bool has_display = HAS_DISPLAY;											// OLED with SSD1306 and I2C
@@ -276,12 +270,6 @@ namespace cfg {
 	unsigned port_custom = PORT_CUSTOM;
 	char user_custom[LEN_USER_CUSTOM] = USER_CUSTOM;
 	char pwd_custom[LEN_CFG_PASSWORD] = PWD_CUSTOM;
-
-	//logging variables
-	unsigned total_logs = 0;
-	unsigned daily_logs = 0;
-	unsigned current_date = 0;
-	unsigned log_file_id = 0;
 
 	void initNonTrivials(const char* id) {
 		strcpy(cfg::current_lang, CURRENT_LANG);
@@ -406,12 +394,6 @@ DallasTemperature ds18b20(&oneWire);
  * GPS declaration                                               *
  *****************************************************************/
 TinyGPSPlus gps;
-
-/*****************************************************************
- * MicroSD declaration                                           *
- *****************************************************************/
-SoftwareSerial serialSD;
-File sensor_readings;
 
 /*****************************************************************
  * Variable Definitions for PPD24NS                              *
@@ -869,29 +851,6 @@ static void disable_unneeded_nmea() {
 //	serialGPS->println(F("$PUBX,40,RMC,0,0,0,0*47"));       // Recommended minimum specific GPS/Transit data
 	serialGPS->println(F("$PUBX,40,GSV,0,0,0,0*59"));       // GNSS satellites in view
 	serialGPS->println(F("$PUBX,40,VTG,0,0,0,0*5E"));       // Track made good and ground speed
-}
-
-/*******************************************************
- * RESET DAILY LOG COUNTER
- * *****************************************************/
-void resetDailyLogCounter(bool oldconfig = false){
-	String cfgName(F("/config.json"));
-	if (oldconfig) {
-		cfgName += F(".old");
-	}
-	File configFile = SPIFFS.open(cfgName, "r");
-	if (!configFile) {
-		debug_outln_error(F("failed to open config file."));
-		return;
-	}
-	DynamicJsonDocument json(JSON_BUFFER_SIZE);
-	DeserializationError err = deserializeJson(json, configFile);
-	configFile.close();
-	if(!err){
-		ConfigShapeEntry c;
-		memcpy_P(&c, &configShape[Config_current_date], sizeof(ConfigShapeEntry));
-		*(c.cfg_val.as_uint) = json[c.cfg_key].as<unsigned int>();
-	}
 }
 
 /*****************************************************************
@@ -1486,8 +1445,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(INTL_MORE_SETTINGS);
 	page_content += FPSTR(WEB_B_BR);
 
-	add_form_checkbox(Config_wifi_enabled, FPSTR(INTL_ENABLE_WIFI));
-	add_form_checkbox(Config_send_logged_data, FPSTR(INTL_SEND_LOGGED_DATA));
 	add_form_checkbox(Config_has_display, FPSTR(INTL_DISPLAY));
 	add_form_checkbox(Config_has_sh1106, FPSTR(INTL_SH1106));
 	add_form_checkbox(Config_has_flipped_display, FPSTR(INTL_FLIP_DISPLAY));
@@ -1662,8 +1619,6 @@ static void webserver_config_send_body_post(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 
-	add_line_value_bool(page_content, FPSTR(INTL_ENABLE_WIFI), wifi_enabled);
-	add_line_value_bool(page_content, FPSTR(INTL_SEND_LOGGED_DATA), send_logged_data);
 	add_line_value_bool(page_content, FPSTR(INTL_DISPLAY), has_display);
 	add_line_value_bool(page_content, FPSTR(INTL_SH1106), has_sh1106);
 	add_line_value_bool(page_content, FPSTR(INTL_FLIP_DISPLAY), has_flipped_display);
@@ -1829,7 +1784,7 @@ static void webserver_wifi() {
  * Webserver root: show latest values                            *
  *****************************************************************/
 static void webserver_values() {
-	if ((WiFi.status() != WL_CONNECTED) && cfg::wifi_enabled) {	
+	if ((WiFi.status() != WL_CONNECTED)) {	
 		sendHttpRedirect();	
 	} else {
 		RESERVE_STRING(page_content, XLARGE_STR);
@@ -1940,10 +1895,10 @@ static void webserver_values() {
 
 		server.sendContent(page_content);
 		page_content = FPSTR(EMPTY_ROW);
-		if(cfg::wifi_enabled) {
-			add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_STRENGTH), String(last_signal_strength), "dBm");
-			add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_QUALITY), String(signal_quality), "%");
-		}
+
+		add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_STRENGTH), String(last_signal_strength), "dBm");
+		add_table_row_from_value(page_content, F("WiFi"), FPSTR(INTL_SIGNAL_QUALITY), String(signal_quality), "%");
+
 		page_content += FPSTR(EMPTY_ROW);
 		page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 		end_html_page(page_content);
@@ -1989,7 +1944,7 @@ static String delayToString(unsigned time_ms) {
  * Webserver root: show device status
  *****************************************************************/
 static void webserver_status() {
-	if ((WiFi.status() != WL_CONNECTED) && cfg::wifi_enabled) {	
+	if ((WiFi.status() != WL_CONNECTED)) {	
 		sendHttpRedirect();
 		return;	
 	}
@@ -2012,7 +1967,7 @@ static void webserver_status() {
 	if (cfg::auto_update) {
 		add_table_row_from_value(page_content, F("Last OTA"), delayToString(millis() - last_update_attempt));
 	}
-	if(cfg::wifi_enabled){
+
 	#if defined(ESP8266)
 		add_table_row_from_value(page_content, F("NTP Sync"), String(sntp_time_set));
 		StreamString ntpinfo;
@@ -2030,13 +1985,11 @@ static void webserver_status() {
 		}
 		add_table_row_from_value(page_content, F("NTP Info"), ntpinfo);
 	#endif
-	}
-	if(cfg::wifi_enabled){
+
 		time_t now = time(nullptr);
 		add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
-	}
-	add_table_row_from_value(page_content, F("Uptime"), delayToString(millis() - time_point_device_start_ms));
-	add_table_row_from_value(page_content, F("Reset Reason"), ESP.getResetReason());
+		add_table_row_from_value(page_content, F("Uptime"), delayToString(millis() - time_point_device_start_ms));
+		add_table_row_from_value(page_content, F("Reset Reason"), ESP.getResetReason());
 	if (cfg::sds_read) {
 		page_content += FPSTR(EMPTY_ROW);
 		add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), last_value_SDS_version);
@@ -2044,7 +1997,6 @@ static void webserver_status() {
 
 	page_content += FPSTR(EMPTY_ROW);
 	page_content += F("<tr><td colspan='2'><b>" INTL_ERROR "</b></td></tr>");
-	if(cfg::wifi_enabled){
 		add_table_row_from_value(page_content, F("WiFi"), String(WiFi_error_count));
 		if (last_update_returncode != 0) {
 			add_table_row_from_value(page_content, F("OTA Return"),
@@ -2055,7 +2007,6 @@ static void webserver_status() {
 			add_table_row_from_value(page_content, F("Data Send Return"),
 				last_sendData_returncode > 0 ? String(last_sendData_returncode) : HTTPClient::errorToString(last_sendData_returncode));
 		}
-	}
 	if (cfg::sds_read) {
 		add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), String(SDS_error_count));
 	}
@@ -2064,8 +2015,6 @@ static void webserver_status() {
 	}
 	page_content += FPSTR(EMPTY_ROW);
 	page_content += F("<tr><td colspan='2'><b>" "LOG COUNT" "</b></td></tr>");
-	add_table_row_from_value(page_content, F("TOTAL LOGS"), String(cfg::total_logs));
-	add_table_row_from_value(page_content, F("DAILY LOGS"), String(cfg::daily_logs));
 
 	server.sendContent(page_content);
 	page_content = emptyString;
@@ -2321,33 +2270,6 @@ static int selectChannelForAp() {
 	} else {
 		return 11;
 	}
-}
-
-
-/****************************************************************
- * ENABLE WEB-SERVER OFFLINE
- * **************************************************************/
-void enableWebServerOffline(){
-	debug_outln_info(F("Starting WiFiManager"));
-	debug_outln_info(F("AP ID: "), String(cfg::fs_ssid));
-	debug_outln_info(F("Password: "), String(cfg::fs_pwd));
-
-	WiFi.disconnect(true);
-
-	WiFi.mode(WIFI_AP);
-	const IPAddress apIP(192, 168, 4, 1);
-	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
-	// In case we create a unique password at first start
-	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
-
-	DNSServer dnsServer;
-	// Ensure we don't poison the client DNS cache
-	dnsServer.setTTL(0);
-	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-	dnsServer.start(53, "*", apIP);							// 53 is port for DNS server
-
-	setup_webserver();
 }
 
 /*****************************************************************
@@ -2608,68 +2530,6 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 
 	return millis() - start_send;
 }
-
-/*****************************************************************
- * send single sensor data to SD card                			 *
- *****************************************************************/
-static unsigned long sendSD(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
-{
-	unsigned long start_send = millis();
-
-	if (cfg::send2sd && data.length())
-	{
-		RESERVE_STRING(data_SD, LARGE_STR);
-		data_SD = FPSTR(data_first_part);
-
-		debug_outln_info(F("## Logging data to SD - "), sensorname);
-		data_SD += data;
-		data_SD.remove(data_SD.length() - 1);
-		data_SD.replace(replace_str, emptyString);
-		data_SD += "}";
-		Serial.println(data_SD);
-
-		sensor_readings.print(data_SD);
-		sensor_readings.print(", ");
-		sensor_readings.print(pin);
-		sensor_readings.print(", ");
-		sensor_readings.print(sensorname);
-		sensor_readings.println("/t");
-
-		toggle_status_LEDs(LOGGER_LED,HIGH,LOW,5000);	// turn logger status led on for 5 seconds
-		debug_outln_info("sensors data logged successfuly");
-	}
-	else
-	{
-		switch_status_LEDs_off(LOGGER_LED,LOW);	// turn logger status led off
-		debug_outln_info("error logging data!!");
-	}
-
-	return millis() - start_send;
-}
-
-/*****************************************************************
- * Send single sensor data from logging file to sensors.AFRICA api
- * ***************************************************************/
-static unsigned long sendCFAFromLoggingFile(const String &data, const int pin, const __FlashStringHelper *sensorname, const char *replace_str)
-{
-	unsigned long sum_send_time = 0;
-
-	if (cfg::send2cfa && data.length())
-	{
-		RESERVE_STRING(data_CFA, LARGE_STR);
-
-		debug_outln_info(F("## Sending to sensors.AFRICA - "), sensorname);
-		data_CFA += data;
-		data_CFA.remove(data_CFA.length() - 1);
-		data_CFA.replace(replace_str, emptyString);
-		Serial.println(data_CFA);
-
-		sum_send_time = sendData(LoggerCFA, data_CFA, pin, HOST_CFA, URL_CFA);
-	}
-
-	return sum_send_time;
-}
-
 
 /*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
@@ -3825,7 +3685,6 @@ void init_PCF8575() {
 
 	pcf8575.begin();
 	pcf8575.pinMode(GPS_LED, OUTPUT);
-	pcf8575.pinMode(LOGGER_LED, OUTPUT);
 	pcf8575.pinMode(MIC_LED, OUTPUT);
 	pcf8575.pinMode(PMS_LED, OUTPUT);
 	pcf8575.pinMode(DHT_LED, OUTPUT);
@@ -4423,22 +4282,6 @@ static void initSPS30() {
 }
 
 /*****************************************************************
- Init Micro SD card logger
- *****************************************************************/
-static void init_SD()
-{	
-	serialSD.begin(115200);
-	debug_outln_info("Micro SD Logger initializing...");
-
-	if (!SD.begin(SD_chipSelect)) {
-		debug_outln_info("Check SD card");
-		return;
-	}
-	debug_outln_info("Card initialized.");
-
-}
-
-/*****************************************************************
    Init DNMS - Digital Noise Measurement Sensor
  *****************************************************************/
 static void initDNMS() {
@@ -4458,15 +4301,6 @@ static void initDNMS() {
 }
 
 static void powerOnTestSensors() {
-	if (cfg::wifi_enabled)
-	{
-		debug_outln_info(F("WIFI ENABLED..."));
-	}
-	else
-	{
-		debug_outln_info(F("WIFI DISABLED..."));
-	}
-
 	if (cfg::ppd_read) {
 		pinMode(PPD_PIN_PM1, INPUT_PULLUP);					// Listen at the designated PIN
 		pinMode(PPD_PIN_PM2, INPUT_PULLUP);					// Listen at the designated PIN
@@ -4573,14 +4407,6 @@ static void powerOnTestSensors() {
 		switch_status_LEDs_off(GPS_LED,LOW);	// turn GPS status led off
 	}
 
-	if (cfg::sd_read){
-		toggle_status_LEDs(LOGGER_LED,HIGH,LOW,2000);	// turn logger status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(LOGGER_LED,LOW);	// turn logger status led off
-	}
-
 }
 
 static void logEnabledAPIs() {
@@ -4651,79 +4477,6 @@ static void setupNetworkTime() {
 	strcpy_P(ntpServer1, NTP_SERVER_1);
 	strcpy_P(ntpServer2, NTP_SERVER_2);
 	configTime(0, 0, ntpServer1, ntpServer2, ntpServer3);
-}
-
-/**************************************************************
- * OPEN SD-CARD FILE FOR LOGGING
- * *************************************************************/
-void openLoggingFile()
-{
-	resetDailyLogCounter();
-	//increment Log counters
-	cfg::total_logs+=1;
-	cfg::daily_logs+=1;
-	writeConfig();
-	if (cfg::send2sd)
-	{
-		init_SD();
-		debug_outln_info(F("## Logging to SD: "));
-		sensor_readings = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_WRITE); // Open sensor_readings.txt file
-		delay(5000);
-	}
-}
-
-/*************************************************************************
- * PARSE DATA RETREIVED FROM LOGGING FILE INTO FORMAT ACCEPTED BY CFA API
- * ***********************************************************************/
-String parseRetreivedData(String read_data){
-	String json_data;
-	int data_end_index = read_data.lastIndexOf("}");
-	if(data_end_index != -1){
-		json_data = read_data.substring(0,data_end_index+2);
-	}
-	return json_data;
-}
-
-/*************************************************************************
- * DETERMINE WHICH SENSOR THE LINE OF DATA READ BELONGS TO AND SEND TO CFA
- * ***********************************************************************/
-void sendRetreivedDataToCFA(String read_data){
-	if(read_data.indexOf("PMSx003") >= 0 ){
-		String PMSx003_payload = parseRetreivedData(read_data);
-		if(!PMSx003_payload.isEmpty()){
-			sendCFAFromLoggingFile(PMSx003_payload, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-		}
-	}
-	if(read_data.indexOf("DHT22") >= 0){
-		String DHT_payload = parseRetreivedData(read_data);
-		if(!DHT_payload.isEmpty()){
-			sendCFAFromLoggingFile(DHT_payload, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-		}
-	}
-	if(read_data.indexOf("GPS") >= 0){
-		String GPS_payload = parseRetreivedData(read_data);
-		if(!GPS_payload.isEmpty()){
-			sendCFAFromLoggingFile(GPS_payload, GPS_API_PIN, F("GPS"), "GPS_");
-		}
-	}
-}
-
-/*******************************************************************
- * READ DATA FROM LOG FILE AND SEND TO sensors.AFRICA API
- * *****************************************************************/
-void readLoggingFileAndSendToCFA(){
-	init_SD();
-	File loggingFile = SD.open(esp_chipid + "_" + String(cfg::log_file_id) + "_" + "sensor_readings.txt", FILE_READ);
-	if(loggingFile){
-		while (loggingFile.available()) {
-			String retreived_line = loggingFile.readStringUntil('\n');
-			sendRetreivedDataToCFA(retreived_line);
-		}
-		loggingFile.close();
-	}
-	else{
-		Serial.println("Failed to open file");
-	}
 }
 
 static unsigned long sendDataToOptionalApis(const String &data) {
@@ -4835,14 +4588,9 @@ void setup(void) {
 	init_config();
 	init_display();
 	init_lcd();
-	if(cfg::wifi_enabled){
-		setupNetworkTime();
-		connectWifi();
-		setup_webserver();
-	}
-	if(!cfg::wifi_enabled){
-		enableWebServerOffline();
-	}
+	setupNetworkTime();
+	connectWifi();
+	setup_webserver();
 	createLoggerConfigs();
 	debug_outln_info(F("\nChipId: "), esp_chipid);
 
@@ -4868,17 +4616,10 @@ void setup(void) {
 #if defined(ESP8266)
 	wdt_disable();
 #if defined(NDEBUG)
-	wdt_enable(120000);
+	wdt_enable(30000);
 #endif
 #endif
-	if(cfg::wifi_enabled && cfg::send_logged_data){
-		readLoggingFileAndSendToCFA();
-		cfg::log_file_id += 1;
-		cfg::wifi_enabled = 0;
-		cfg::send_logged_data = 0;
-		writeConfig();
-		delay(300000); //Delay for 5 minutes before starting another sample cycle.
-	}
+
 	starttime = millis();									// store the start time
 	last_update_attempt = time_point_device_start_ms = starttime;
 	last_display_millis = starttime_SDS = starttime;
@@ -5014,11 +4755,6 @@ void loop(void) {
 	}
 
 	server.handleClient();
-	if(!cfg::wifi_enabled){
-		#if defined(ESP8266)
-		wdt_reset(); // nodemcu is alive
-		#endif
-	}
 	yield();
 
 	if (send_now) {
@@ -5027,60 +4763,31 @@ void loop(void) {
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
 
-		//Open SD-card file for logging
-		openLoggingFile(); 
-
 		if (cfg::ppd_read) {
 			data += result_PPD;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-			}
-			if(cfg::wifi_enabled){
-				sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-				sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-			}
-      		
+			sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
+			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");		
 		}
 		if (cfg::sds_read) {
 			data += result_SDS;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-				sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-			}
+			sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
+			sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
 		}
 		if (cfg::pms_read) {
 			data += result_PMS;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-				sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
-			}
+			sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
+			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 		}
 		if (cfg::hpm_read) {
 			data += result_HPM;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-				sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-			}
+			sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
+			sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
 		}
 		if (cfg::sps30_read && (! sps30_init_failed)) {
 			fetchSensorSPS30(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-				sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-			}
+			sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
+			sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
 			result = emptyString;
 		}
 		if (cfg::dht_read) {
@@ -5092,39 +4799,24 @@ void loop(void) {
 				fetchSensorDHT(result);
 			}
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-				sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
-			}
+			sum_send_time += sendCFA(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
+			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			result = emptyString;
 		}
 		if (cfg::htu21d_read && (! htu21d_init_failed)) {
 			// getting temperature and humidity (optional)
 			fetchSensorHTU21D(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-				sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-			}
+			sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
+			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
 			result = emptyString;
 		}
 		if (cfg::bmp_read && (! bmp_init_failed)) {
 			// getting temperature and pressure (optional)
 			fetchSensorBMP(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-				sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-			}
+			sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
+			sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
 			result = emptyString;
 		}
 		if (cfg::bmx280_read && (! bmx280_init_failed)) {
@@ -5132,21 +4824,11 @@ void loop(void) {
 			fetchSensorBMX280(result);
 			data += result;
 			if (bmx280.sensorID() == BME280_SENSOR_ID) {
-				if(cfg::send2sd) {
-					sum_send_time += sendSD(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
-				}
-        		if(cfg::wifi_enabled){
 					sum_send_time += sendCFA(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
 					sum_send_time += sendSensorCommunity(result, BME280_API_PIN, FPSTR(SENSORS_BMX280), "BME280_");
-				}
 			} else {
-				if(cfg::send2sd){
-					sum_send_time += sendSD(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
-				}
-        		if(cfg::wifi_enabled) {
 					sum_send_time += sendCFA(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
 					sum_send_time += sendSensorCommunity(result, BMP280_API_PIN, FPSTR(SENSORS_BMX280), "BMP280_");
-				}
 			}
 			result = emptyString;
 		}
@@ -5154,50 +4836,30 @@ void loop(void) {
 			// getting temperature and humidity (optional)
 			fetchSensorSHT3x(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-				sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-			}
+			sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
+			sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
 			result = emptyString;
 		}
 		if (cfg::ds18b20_read) {
 			// getting temperature (optional)
 			fetchSensorDS18B20(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
-				sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
-			}
+			sum_send_time += sendCFA(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
+			sum_send_time += sendSensorCommunity(result, DS18B20_API_PIN, FPSTR(SENSORS_DS18B20), "DS18B20_");
 			result = emptyString;
 		}
 		if (cfg::dnms_read && (! dnms_init_failed)) {
 			// getting noise measurement values from dnms (optional)
 			fetchSensorDNMS(result);
 			data += result;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-				sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-			}
+			sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
+			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
 			result = emptyString;
 		}
 		if (cfg::gps_read) {
 			data += result_GPS;
-			if(cfg::send2sd) {
-				sum_send_time += sendSD(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			}
-      		if(cfg::wifi_enabled) {
-				sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-				sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			}
+			sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
+			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
 			result = emptyString;
 		}
 		add_Value2Json(data, F("samples"), String(sample_count));
@@ -5212,9 +4874,7 @@ void loop(void) {
 
 		yield();
 
-		if(cfg::wifi_enabled) {
-			sum_send_time += sendDataToOptionalApis(data);
-		}
+		sum_send_time += sendDataToOptionalApis(data);
 
 		// https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average
 		sending_time = (3 * sending_time + sum_send_time) / 4;
@@ -5223,7 +4883,7 @@ void loop(void) {
 		}
 
 		// reconnect to WiFi if disconnected
-		if ((WiFi.status() != WL_CONNECTED && cfg::wifi_enabled)) {
+		if ((WiFi.status() != WL_CONNECTED)) {
 			debug_outln_info(F("Connection lost, reconnecting "));
 			WiFi_error_count++;
 			WiFi.reconnect();

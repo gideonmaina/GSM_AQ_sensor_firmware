@@ -28,7 +28,6 @@ const char WWW_PASSWORD[] PROGMEM = "feinstaub";
 #define SEND2INFLUX 0
 #define SEND2LORA 0
 #define SEND2CSV 0
-#define SEND2SD 1
 #define SEND2CUSTOM 0
 
 // OpenSenseMap
@@ -133,12 +132,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_RX D0
 #define GPS_SERIAL_TX D0
 
-// define pins for the micro_sd logger shield
-#define SD_SCK D5
-#define SD_MISO D6
-#define SD_MOSI D7
-#define SD_chipSelect D8
-
 // define pins for the PCF8575 gpio expander
 #define SCL D1
 #define SDA D2
@@ -149,7 +142,6 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 
 // define pins for status LEDs
 #define GPS_LED P0
-#define LOGGER_LED P1
 #define MIC_LED P3
 #define PMS_LED P4
 #define DHT_LED P5
@@ -217,19 +209,10 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 #endif
 
-//Activate device to send logged data
-#define SEND_LOGGED_DATA 0
-
-// Device is WiFi Enabled
-#define WIFI_ENABLED 0
-
 // DHT22, temperature, humidity
 #define DHT_READ 1
 #define DHT_TYPE DHT22
 #define DHT_API_PIN 7
-
-// MicroSD
-#define SD_READ 1
 
 // HTU21D, temperature, humidity
 #define HTU21D_READ 0
