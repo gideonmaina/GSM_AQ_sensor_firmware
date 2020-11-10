@@ -128,19 +128,13 @@ static const char MEASUREMENT_NAME_INFLUX[] PROGMEM = " ";
 #define GPS_SERIAL_RX D3
 #define GPS_SERIAL_TX D4
 
-// define pins for the PCF8575 gpio expander
-#define SCL D1
-#define SDA D2
-
 // PPD42NS, the cheaper version of the particle sensor
 #define PPD_PIN_PM1 GPS_SERIAL_TX
 #define PPD_PIN_PM2 GPS_SERIAL_RX
 
 // define pins for status LEDs
-#define GPS_LED P0
-#define MIC_LED P3
-#define PMS_LED P4
-#define DHT_LED P5
+#define PMS_LED D3
+#define DHT_LED D4
 #endif
 
 

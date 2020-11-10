@@ -102,7 +102,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include "./DHT.h"
-#include <PCF8575.h>
 #include <SPI.h>
 #include <Adafruit_HTU21DF.h>
 #include <Adafruit_BMP085.h>
@@ -352,11 +351,6 @@ SoftwareSerial* serialGPS;
  * DHT declaration                                               *
  *****************************************************************/
 DHT dht(ONEWIRE_PIN, DHT_TYPE);
-
-/*****************************************************************
- * PCF8575 declaration                                           *
- *****************************************************************/
-PCF8575 pcf8575(0x20);
 
 /*****************************************************************
  * HTU21D declaration                                            *
@@ -3428,25 +3422,16 @@ static void fetchSensorGPS(String& s) {
 }
 
 /*****************************************************************
- * INITIALIZE PCF8575										     *
+ * Toggle and switch LEDs off                                    *
  *****************************************************************/
-void init_PCF8575() {
-
-	pcf8575.begin();
-	pcf8575.pinMode(GPS_LED, OUTPUT);
-	pcf8575.pinMode(MIC_LED, OUTPUT);
-	pcf8575.pinMode(PMS_LED, OUTPUT);
-	pcf8575.pinMode(DHT_LED, OUTPUT);
-}
-
 void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16_t _delay) {
-	pcf8575.digitalWrite(LED,first_state);
+	digitalWrite(LED,first_state);
 	delay(_delay);
-	pcf8575.digitalWrite(LED,second_state);
+	digitalWrite(LED,second_state);
 }
 
 void switch_status_LEDs_off(uint8_t LED, bool off_state) {
-	pcf8575.digitalWrite(LED,LOW);
+	digitalWrite(LED,LOW);
 }
 
 /*****************************************************************
@@ -4147,17 +4132,7 @@ static void powerOnTestSensors() {
 		debug_outln_info(F("Read DNMS..."));
 		initDNMS();
 	}
-
-	if (cfg::gps_read){
-		toggle_status_LEDs(GPS_LED,HIGH,LOW,2000);	// turn GPS status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(GPS_LED,LOW);	// turn GPS status led off
-	}
-
 }
-
 static void logEnabledAPIs() {
 	debug_outln_info(F("Send to :"));
 	if (cfg::send2dusti) {
@@ -4313,6 +4288,8 @@ void setup(void) {
 	digitalWrite(RST_OLED, HIGH);
 #endif
 	Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL);
+	pinMode(PMS_LED, OUTPUT);
+	pinMode(DHT_LED, OUTPUT);
 
 #if defined(ESP8266)
 	esp_chipid = std::move(String(ESP.getChipId()));
@@ -4332,7 +4309,6 @@ void setup(void) {
 		SOFTWARE_VERSION += F("-STF");
 	}
 
-	init_PCF8575();
 	init_config();
 	init_display();
 	init_lcd();
