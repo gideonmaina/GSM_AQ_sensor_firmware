@@ -1520,6 +1520,19 @@ static void webserver_config_send_body_get(String& page_content) {
 	add_form_checkbox(Config_gps_read, FPSTR(INTL_NEO6M));
 
 	page_content += FPSTR(WEB_BR_LF_B);
+	page_content += F("GSM");
+	page_content += FPSTR(WEB_B_BR);
+
+	page_content += form_checkbox(Config_gsm_capable, F("GSM_capable"), false);
+	page_content += FPSTR(TABLE_TAG_OPEN);
+	add_form_input(page_content, Config_gsm_pin, FPSTR(INTL_GSM_PIN), LEN_GSM_PIN -1);
+	add_form_input(page_content, Config_gprs_apn, FPSTR(INTL_GPRS_APN), LEN_GPRS_APN-1);
+	add_form_input(page_content, Config_gprs_username, FPSTR(INTL_GPRS_USERNAME), LEN_GPRS_USERNAME-1);
+	add_form_input(page_content, Config_gprs_password, FPSTR(INTL_GPRS_PASSWORD), LEN_GPRS_PASSWORD-1);
+	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
+	page_content += FPSTR(BR_TAG);
+
+	page_content += FPSTR(WEB_BR_LF_B);
 	page_content += F("APIs");
 	page_content += FPSTR(WEB_B_BR);
 	// Paginate page after ~ 1500 Bytes
@@ -1540,18 +1553,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(TABLE_TAG_OPEN);
 	add_form_input(page_content, Config_senseboxid, F("senseBox&nbsp;ID"), LEN_SENSEBOXID-1);
 
-	page_content += FPSTR(WEB_BR_LF_B);
-	page_content += F("GSM");
-	page_content += FPSTR(WEB_B_BR);
-	page_content += form_checkbox(Config_gsm_capable, F("GSM_Capable"), true);
-	add_form_input(page_content, Config_gsm_pin, FPSTR(INTL_GSM_PIN), LEN_GSM_PIN-4);
-	add_form_input(page_content, Config_gprs_apn, FPSTR(INTL_GPRS_APN), LEN_GPRS_APN-100);
-	add_form_input(page_content, Config_gprs_username, FPSTR(INTL_GPRS_USERNAME), LEN_GPRS_USERNAME-100);
-	add_form_input(page_content, Config_gprs_password, FPSTR(INTL_GPRS_PASSWORD), LEN_GPRS_PASSWORD-100);
-	page_content += FPSTR(WEB_B_BR);
-
 	server.sendContent(page_content);
-	page_content = FPSTR(TABLE_TAG_CLOSE_BR);
 	page_content += FPSTR(BR_TAG);
 	page_content += form_checkbox(Config_send2custom, FPSTR(INTL_SEND_TO_OWN_API), false);
 	page_content += FPSTR(WEB_NBSP_NBSP_BRACE);
@@ -1675,16 +1677,6 @@ static void webserver_config_send_body_post(String& page_content) {
 	// Paginate after ~ 1500 bytes
 	server.sendContent(page_content);
 	page_content = emptyString;
-
-	page_content += FPSTR(WEB_BR_LF_B);
-	page_content += F("GSM");
-	page_content += FPSTR(WEB_B_BR);
-	add_line_value_bool(page_content, FPSTR(Config_gsm_capable), GSM_CAPABLE);
-	add_line_value(page_content,FPSTR(INTL_GSM_PIN), GSM_PIN);
-	add_line_value(page_content, FPSTR(INTL_GPRS_APN), GPRS_APN);
-	add_line_value(page_content, FPSTR(INTL_GPRS_USERNAME), GPRS_USERNAME);
-	add_line_value(page_content, FPSTR(INTL_GPRS_PASSWORD), GPRS_PASSWORD);
-	page_content += FPSTR(WEB_B_BR);
 
 	page_content += F("<br/>senseBox-ID ");
 	page_content += senseboxid;
@@ -1828,7 +1820,7 @@ static void webserver_wifi() {
  * Webserver root: show latest values                            *
  *****************************************************************/
 static void webserver_values() {
-	if ((WiFi.status() != WL_CONNECTED)) {	
+	if (WiFi.status() != WL_CONNECTED) {	
 		sendHttpRedirect();	
 	} else {
 		RESERVE_STRING(page_content, XLARGE_STR);
@@ -1988,7 +1980,7 @@ static String delayToString(unsigned time_ms) {
  * Webserver root: show device status
  *****************************************************************/
 static void webserver_status() {
-	if ((WiFi.status() != WL_CONNECTED)) {	
+	if (WiFi.status() != WL_CONNECTED) {	
 		sendHttpRedirect();
 		return;	
 	}
@@ -2647,6 +2639,22 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 
 	std::unique_ptr<WiFiClient> client(getNewLoggerWiFiClient(logger));
 
+	String request_head = F("POST ");
+	request_head += String(s_url);
+	request_head += F(" HTTP/1.1\r\n");
+	request_head += F("Host: ");
+	request_head += String(s_Host) + "\r\n";
+	request_head += F("Content-Type: ");
+	request_head += contentType;
+	request_head += F("\r\n");
+	request_head += F("X-PIN: ");
+	request_head += String(pin) + "\r\n";
+	request_head += F("X-Sensor: esp8266-");
+	request_head += esp_chipid + "\r\n";
+	request_head += F("Content-Length: ");
+	request_head += String(data.length(), DEC) + "\r\n";
+	request_head += F("Connection: close\r\n\r\n");
+
 	if (gsm_capable){
 		delay(3000);
 		int retry_count = 0;
@@ -2695,6 +2703,7 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 		debug_out(F("Failed with status code "), DEBUG_ERROR);
 		debug_out(String(statuscode), DEBUG_ERROR);
 		restart_GSM();
+		return false;
 		}
 		while (length > 0) {
 			while (fona.available()) {
@@ -2715,45 +2724,67 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 		fona.HTTP_POST_end();
 	}
 	else if (PORT_CFA == 443) {
-		HTTPClient http;
-		http.setTimeout(20 * 1000);
-		http.setUserAgent(SOFTWARE_VERSION + '/' + esp_chipid);
-		http.setReuse(false);
-		bool send_success = false;
-		if (logger == LoggerCustom && (*cfg::user_custom || *cfg::pwd_custom))
-		{
-			http.setAuthorization(cfg::user_custom, cfg::pwd_custom);
-		}
-		if (logger == LoggerInflux && (*cfg::user_influx || *cfg::pwd_influx))
-		{
-			http.setAuthorization(cfg::user_influx, cfg::pwd_influx);
-		}
-		if (http.begin(*client, s_Host, loggerConfigs[logger].destport, s_url, !!loggerConfigs[logger].session))
-		{
-			http.addHeader(F("Content-Type"), contentType);
-			http.addHeader(F("X-Sensor"), String(F(SENSOR_BASENAME)) + esp_chipid);
-			if (pin)
-			{
-				http.addHeader(F("X-PIN"), String(pin));
-			}
+		WiFiClientSecure client_s;
 
-			result = http.POST(data);
+		client_s.setNoDelay(true);
+		client_s.setTimeout(20000);
 
-			if (result >= HTTP_CODE_OK && result <= HTTP_CODE_ALREADY_REPORTED)
-			{
-				debug_outln_info(F("Succeeded - "), s_Host);
-				send_success = true;
-			}
-			else if (result >= HTTP_CODE_BAD_REQUEST)
-			{
-				debug_outln_info(F("Request failed with error: "), String(result));
-				debug_outln_info(F("Details:"), http.getString());
-			}
-			http.end();
+		if (!client_s.connect(s_Host, PORT_CFA))
+		{
+			debug_out(F("connection failed"), DEBUG_ERROR);
 		}
+
+		debug_out(F("Requesting URL: "), DEBUG_MIN_INFO);
+		debug_out(s_url, DEBUG_MIN_INFO);
+		debug_out(esp_chipid, DEBUG_MIN_INFO);
+		debug_out(data, DEBUG_MIN_INFO);
+
+		// send request to the server
+
+		client_s.print(request_head);
+
+		client_s.println(data);
+
+		delay(10);
+
+		// Read reply from server and print them
+		while (client_s.available())
+		{
+			char c = client_s.read();
+			debug_out(String(c), DEBUG_MAX_INFO);
+		}
+
+		debug_out(F("\nclosing connection\n------\n\n"), DEBUG_MIN_INFO);
+
 	} else {
-			debug_outln_info(F("Failed connecting to "), s_Host);
+		WiFiClient client;
+		client.setNoDelay(true);
+		client.setTimeout(20000);
+		debug_outln_info(F("Failed connecting to "), s_Host);
+		if (!client.connect(s_Host, PORT_CFA))
+		{
+			debug_out(F("connection failed"), DEBUG_ERROR);
+		}
+		debug_out(F("Requesting URL: "), DEBUG_MIN_INFO);
+		debug_out(s_url, DEBUG_MIN_INFO);
+		debug_out(esp_chipid, DEBUG_MIN_INFO);
+		debug_out(data, DEBUG_MIN_INFO);
+
+		client.print(request_head);
+		client.println(data);
+
+		delay(10);
+		// Read reply from server and print them
+		while (client.available())
+		{
+			char c = client.read();
+			debug_out(String(c), DEBUG_MAX_INFO);
+		}
+
+		debug_out(F("\nclosing connection\n------\n\n"), DEBUG_MIN_INFO);
 	}
+	debug_out(F("End connecting to "), DEBUG_MIN_INFO);
+	debug_out(s_Host, DEBUG_MIN_INFO);
 
 	wdt_reset();
 	yield();
@@ -2900,6 +2931,9 @@ static void fetchSensorDHT(String& s) {
 			last_value_DHT_H = h;
 			add_Value2Json(s, F("temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DHT_T);
 			add_Value2Json(s, F("humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_DHT_H);
+			switch_status_LEDs_on(DHT_LED, HIGH);
+			delay(5000);
+			switch_status_LEDs_off(DHT_LED, LOW);
 			break;
 		}
 	}
@@ -3289,6 +3323,9 @@ static void fetchSensorPMS(String& s) {
 		if (cfg::sending_intervall_ms > (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS)) {
 			is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
 		}
+		switch_status_LEDs_on(PMS_LED, HIGH);
+		delay(5000);
+		switch_status_LEDs_off(PMS_LED, LOW);
 	}
 
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
@@ -3668,12 +3705,10 @@ static void fetchSensorGPS(String& s) {
 }
 
 /*****************************************************************
- * Toggle and switch LEDs off                                    *
+ * Switch status LEDs on/ off                                    *
  *****************************************************************/
-void toggle_status_LEDs(uint8_t LED, bool first_state, bool second_state, uint16_t _delay) {
-	digitalWrite(LED,first_state);
-	delay(_delay);
-	digitalWrite(LED,second_state);
+void switch_status_LEDs_on(uint8_t LED, bool on_state) {
+	digitalWrite(LED,HIGH);
 }
 
 void switch_status_LEDs_off(uint8_t LED, bool off_state) {
@@ -4303,11 +4338,6 @@ static void powerOnTestSensors() {
 		delay(100);
 		debug_outln_info(F("Stopping PMS..."));
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
-		toggle_status_LEDs(PMS_LED,HIGH,LOW,2000);	// turn PMS status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(PMS_LED,LOW);	// turn PMS status led off
 	}
 
 	if (cfg::hpm_read) {
@@ -4328,11 +4358,6 @@ static void powerOnTestSensors() {
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
-		toggle_status_LEDs(DHT_LED,HIGH,LOW,2000);	// turn DHT status led on for 2 seconds
-	}
-	else
-	{
-		switch_status_LEDs_off(DHT_LED,LOW);	// turn DHT status led off
 	}
 
 	if (cfg::htu21d_read) {
@@ -4595,7 +4620,7 @@ void setup(void) {
 #if defined(ESP8266)
 	wdt_disable();
 #if defined(NDEBUG)
-	wdt_enable(30000);
+	wdt_enable(120000);
 #endif
 #endif
 
@@ -4845,7 +4870,7 @@ void loop(void) {
 		}
 
 		// reconnect to WiFi if disconnected
-		/*if ((WiFi.status() != WL_CONNECTED)) {
+		/*if (WiFi.status() != WL_CONNECTED) {
 			debug_outln_info(F("Connection lost, reconnecting "));
 			WiFi_error_count++;
 			WiFi.reconnect();
