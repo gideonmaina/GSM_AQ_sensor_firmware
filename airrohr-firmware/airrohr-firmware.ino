@@ -2621,6 +2621,7 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 	unsigned long start_send = millis();
 	const __FlashStringHelper* contentType;
 	int result = 0;
+	int port;
 
 	String s_Host(FPSTR(host));
 	String s_url(FPSTR(url));
@@ -2700,10 +2701,10 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 		debug_out(F("## Sending via gsm\n\n"), DEBUG_MIN_INFO);
 		
 		if (!fona.HTTP_POST_start((char *) gprs_url, F("application/json"), gprs_request_head, (uint8_t *) gprs_data, strlen(gprs_data), &statuscode, (uint16_t *)&length)) {
-		debug_out(F("Failed with status code "), DEBUG_ERROR);
+		debug_outln_error(F("Failed with status code "));
 		debug_out(String(statuscode), DEBUG_ERROR);
 		restart_GSM();
-		return false;
+		return true;
 		}
 		while (length > 0) {
 			while (fona.available()) {
@@ -2723,75 +2724,54 @@ static unsigned long sendData(const LoggerEntry logger, const String& data, cons
 		debug_out(F("\n\n## End sending via gsm \n\n"), DEBUG_MIN_INFO);
 		fona.HTTP_POST_end();
 	}
-	else if (PORT_CFA == 443) {
-		WiFiClientSecure client_s;
-
-		client_s.setNoDelay(true);
-		client_s.setTimeout(20000);
-
-		if (!client_s.connect(s_Host, PORT_CFA))
+	else if (WiFi.status() == WL_CONNECTED)
+	{
+		HTTPClient http;
+		http.setTimeout(20 * 1000);
+		http.setUserAgent(SOFTWARE_VERSION + '/' + esp_chipid);
+		http.setReuse(false);
+		bool send_success = false;
+		if (logger == LoggerCustom && (*cfg::user_custom || *cfg::pwd_custom))
 		{
-			debug_out(F("connection failed"), DEBUG_ERROR);
+			http.setAuthorization(cfg::user_custom, cfg::pwd_custom);
 		}
-
-		debug_out(F("Requesting URL: "), DEBUG_MIN_INFO);
-		debug_out(s_url, DEBUG_MIN_INFO);
-		debug_out(esp_chipid, DEBUG_MIN_INFO);
-		debug_out(data, DEBUG_MIN_INFO);
-
-		// send request to the server
-
-		client_s.print(request_head);
-
-		client_s.println(data);
-
-		delay(10);
-
-		// Read reply from server and print them
-		while (client_s.available())
+		if (logger == LoggerInflux && (*cfg::user_influx || *cfg::pwd_influx))
 		{
-			char c = client_s.read();
-			debug_out(String(c), DEBUG_MAX_INFO);
+			http.setAuthorization(cfg::user_influx, cfg::pwd_influx);
 		}
+		if (http.begin(*client, s_Host, loggerConfigs[logger].destport, s_url, !!loggerConfigs[logger].session))
+		{
+			http.addHeader(F("Content-Type"), contentType);
+			http.addHeader(F("X-Sensor"), String(F(SENSOR_BASENAME)) + esp_chipid);
+			if (pin)
+			{
+				http.addHeader(F("X-PIN"), String(pin));
+			}
 
-		debug_out(F("\nclosing connection\n------\n\n"), DEBUG_MIN_INFO);
+			result = http.POST(data);
 
-	} else {
-		WiFiClient client;
-		client.setNoDelay(true);
-		client.setTimeout(20000);
+			if (result >= HTTP_CODE_OK && result <= HTTP_CODE_ALREADY_REPORTED)
+			{
+				debug_outln_info(F("Succeeded - "), s_Host);
+				send_success = true;
+			}
+			else if (result >= HTTP_CODE_BAD_REQUEST)
+			{
+				debug_outln_info(F("Request failed with error: "), String(result));
+				debug_outln_info(F("Details:"), http.getString());
+			}
+			http.end();
+		}
+	} else
+	{
 		debug_outln_info(F("Failed connecting to "), s_Host);
-		if (!client.connect(s_Host, PORT_CFA))
-		{
-			debug_out(F("connection failed"), DEBUG_ERROR);
-		}
-		debug_out(F("Requesting URL: "), DEBUG_MIN_INFO);
-		debug_out(s_url, DEBUG_MIN_INFO);
-		debug_out(esp_chipid, DEBUG_MIN_INFO);
-		debug_out(data, DEBUG_MIN_INFO);
-
-		client.print(request_head);
-		client.println(data);
-
-		delay(10);
-		// Read reply from server and print them
-		while (client.available())
-		{
-			char c = client.read();
-			debug_out(String(c), DEBUG_MAX_INFO);
-		}
-
-		debug_out(F("\nclosing connection\n------\n\n"), DEBUG_MIN_INFO);
 	}
-	debug_out(F("End connecting to "), DEBUG_MIN_INFO);
-	debug_out(s_Host, DEBUG_MIN_INFO);
 
-	wdt_reset();
-	yield();
+		wdt_reset();
+		yield();
+		return millis() - start_send;
 	#endif
-
 }
-
 /*****************************************************************
  * send single sensor data to sensors.AFRICA api                  *
  *****************************************************************/
@@ -3708,11 +3688,11 @@ static void fetchSensorGPS(String& s) {
  * Switch status LEDs on/ off                                    *
  *****************************************************************/
 void switch_status_LEDs_on(uint8_t LED, bool on_state) {
-	digitalWrite(LED,HIGH);
+	digitalWrite(LED, HIGH);
 }
 
 void switch_status_LEDs_off(uint8_t LED, bool off_state) {
-	digitalWrite(LED,LOW);
+	digitalWrite(LED, LOW);
 }
 
 /*****************************************************************
