@@ -190,7 +190,7 @@ const unsigned long DURATION_BEFORE_FORCED_RESTART_MS = ONE_DAY_IN_MS * 28;	// f
 namespace cfg {
 	unsigned debug = DEBUG;
 
-	unsigned time_for_wifi_config = 600000;
+	unsigned time_for_wifi_config = 60000;
 	unsigned sending_intervall_ms = 30000;
 
 	char current_lang[3];
@@ -414,7 +414,7 @@ uint8_t GPRS_CONNECTED = 1;
 bool gsm_capable = 1;
 char gsm_pin[5] = "";
 
-char gprs_apn[100] = "";
+char gprs_apn[100] = "internet";
 char gprs_username[100] = "";
 char gprs_password[100] = "";
 #endif
@@ -2529,6 +2529,8 @@ void connectGSM(){
      debug_outln(F("Module IMEI: "), DEBUG_MIN_INFO); debug_out(String(imei),DEBUG_MIN_INFO);
     }
 
+	fona.setGPRSNetworkSettings(F("internet"), F(""), F(""));
+
     while((fona.getNetworkStatus() != GSM_CONNECTED) && (retry_count < 40)){
       Serial.println("Not registered on network");
       delay(5000);
@@ -2563,12 +2565,14 @@ void connectGSM(){
 	else
 	{
 		enableGPRS();
+		Serial.println("GPRS ENABLED");
 	}
   }
 }
 
 void enableGPRS()
 {
+	// fona.setGPRSNetworkSettings(FONAFlashStringPtr(gprs_apn), FONAFlashStringPtr(gprs_username), FONAFlashStringPtr(gprs_password));
 	int retry_count = 0;
 	while ((fona.GPRSstate() != GPRS_CONNECTED) && (retry_count < 40))
 	{
@@ -2577,6 +2581,13 @@ void enableGPRS()
 		retry_count++;
 	}
 
+	fona.enableGPRS(true);
+}
+
+void disableGPRS()
+{
+	fona.enableGPRS(false);
+	delay(3000);
 	fona.setGPRSNetworkSettings(FONAFlashStringPtr("internet"), FONAFlashStringPtr(""), FONAFlashStringPtr(""));
 }
 
