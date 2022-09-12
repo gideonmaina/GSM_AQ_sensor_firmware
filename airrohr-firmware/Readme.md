@@ -148,6 +148,24 @@ Pinout:
 * SCL  ->  Pin D4 (GPIO2)
 * SDA  ->  Pin D3 (GPIO0)
 
+### Adafruit FONA 808 GSM
+* 5V -> VU
+* BAT -> unused
+* GND -> GND
+* VIO -> VU
+* RST -> D8
+* RX -> D5
+* TX -> D6
+* RTS -> unused
+* Key -> GND
+* RI -> unused
+* PStat -> unused
+* NS -> unused
+* MIC+ -> unused
+* MIC- -> unused
+* SPKR+ -> unused
+* SPKR- -> unused
+
 ### GPS NEO 6M (serial)
 VCC and GND can be provided by board board (use 3.3v!)
 
