@@ -74,6 +74,7 @@ Additional Libraries needed for building:
 * [LiquidCrystal I2C](https://github.com/marcoschwartz/LiquidCrystal_I2C) (1.1.2)
 * [EspSoftwareSerial](https://github.com/plerup/espsoftwareserial)(6.3.0)
 * [TinyGPS++](http://arduiniana.org/libraries/tinygpsplus/) (1.0.2) (GNU Lesser Public License >=2.1)
+* [FONA library](https://github.com/CodeForAfrica/sensors.AFRICA-Adafruit_FONA)
 
 
 ## Source Layout

@@ -7,6 +7,7 @@
 * Wide selection of API integrations for measurement reporting
 * Ability to print measurements as CSV via USB-serial
 * Used with ESP8266 (NodeMCU v2/v3 and compatible) and ESP32 (experimental)
+* Sends data via GSM
 
 ## Contributing
 
@@ -15,7 +16,7 @@ Please refer to [Contributing README](./Contributing.md) for details.
 ## WiFi configuration
 For German Version see: [Konfiguration der Sensoren](https://github.com/opendata-stuttgart/meta/wiki/Konfiguration-der-Sensoren)
 
-If a (previously) configured WiFi is not reachable within 20 seconds after power-on,
+If not able to connect to GSM within 20 seconds after power-on,
 the firmware flips itself into AP mode and creates a WiFi network in the form `airRohr-\[Sensor-ID\]`.
 
 This WiFi network is by default unencrypted. When a client connects to this, it will get
@@ -24,6 +25,7 @@ redirected to the sensors web server `http://192.168.4.1/` which allows initial 
 Configurable is
 * WiFi Access Point to use
 * Options for measurements (Sensors to poll, intervals..)
+* GSM credentials
 * APIs to send the measurements
 
 The unencrypted Access Point for initial configuration will turn itself off after about
@@ -146,6 +148,24 @@ Pinout:
 * SCL  ->  Pin D4 (GPIO2)
 * SDA  ->  Pin D3 (GPIO0)
 
+### Adafruit FONA 808 GSM
+* 5V -> VU
+* BAT -> unused
+* GND -> GND
+* VIO -> VU
+* RST -> D8
+* RX -> D5
+* TX -> D6
+* RTS -> unused
+* Key -> GND
+* RI -> unused
+* PStat -> unused
+* NS -> unused
+* MIC+ -> unused
+* MIC- -> unused
+* SPKR+ -> unused
+* SPKR- -> unused
+
 ### GPS NEO 6M (serial)
 VCC and GND can be provided by board board (use 3.3v!)
 
@@ -162,6 +182,16 @@ uses the following API pins hardcoded. These match what the Luftdaten.info expec
 will use by default when selecting the correct sensor model.
 
 * HPM/PMS/SDS011/SPS30 => Pin 1
+* BMP180/BMP280 => Pin 3
+* DHT22/HTU21D/SHT3x => Pin 7
+* GPS(Neo-6M) => Pin 9
+* BME280 => Pin 11
+* DS18B20 => Pin 13
+* DNMS +> Pin 15
+
+## sensors.AFRICA API "Pins"
+
+* HPM/PMS/SDS011/SPS30/PMS5003 => Pin 1
 * BMP180/BMP280 => Pin 3
 * DHT22/HTU21D/SHT3x => Pin 7
 * GPS(Neo-6M) => Pin 9
