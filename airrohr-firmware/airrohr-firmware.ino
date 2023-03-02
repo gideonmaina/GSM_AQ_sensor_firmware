@@ -222,7 +222,6 @@ namespace cfg {
 	bool ds18b20_read = DS18B20_READ;
 	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
-	bool gps_read = GPS_READ;
 	bool gsm_capable = GSM_CAPABLE;
 
 	// send to "APIs"
@@ -1517,7 +1516,7 @@ static void webserver_config_send_body_get(String& page_content) {
 
 	add_form_checkbox_sensor(Config_pms_read, FPSTR(INTL_PMS));
 	add_form_checkbox_sensor(Config_bmp_read, FPSTR(INTL_BMP180));
-	add_form_checkbox(Config_gps_read, FPSTR(INTL_NEO6M));
+	
 
 	page_content += FPSTR(WEB_BR_LF_B);
 	page_content += F("GSM");
@@ -1649,7 +1648,7 @@ static void webserver_config_send_body_post(String& page_content) {
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DS18B20), ds18b20_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DNMS), dnms_read);
 	add_line_value(page_content, FPSTR(INTL_DNMS_CORRECTION), String(dnms_correction));
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), F("GPS"), gps_read);
+	
 
 	// Paginate after ~ 1500 bytes
 	server.sendContent(page_content);
@@ -1920,14 +1919,7 @@ static void webserver_values() {
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MIN), check_display_value(last_value_dnms_la_min, -1, 1, 0), unit_LA);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MAX), check_display_value(last_value_dnms_la_max, -1, 1, 0), unit_LA);
 		}
-		if (cfg::gps_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_LATITUDE), check_display_value(last_value_GPS_lat, -200.0, 6, 0), unit_Deg);
-			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_LONGITUDE), check_display_value(last_value_GPS_lon, -200.0, 6, 0), unit_Deg);
-			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_ALTITUDE), check_display_value(last_value_GPS_alt, -1000.0, 2, 0), "m");
-			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_DATE), last_value_GPS_date, emptyString);
-			add_table_row_from_value(page_content, FPSTR(WEB_GPS), FPSTR(INTL_TIME), last_value_GPS_time, emptyString);
-		}
+		
 
 		server.sendContent(page_content);
 		page_content = FPSTR(EMPTY_ROW);
@@ -4012,11 +4004,7 @@ static void display_values() {
 		la_max_value = last_value_dnms_la_max;
 		la_min_value = last_value_dnms_la_min;
 	}
-	if (cfg::gps_read) {
-		lat_value = last_value_GPS_lat;
-		lon_value = last_value_GPS_lon;
-		alt_value = last_value_GPS_alt;
-	}
+	
 	if (cfg::ppd_read || cfg::pms_read || cfg::hpm_read || cfg::sds_read) {
 		screens[screen_count++] = 1;
 	}
@@ -4026,9 +4014,7 @@ static void display_values() {
 	if (cfg::dht_read || cfg::ds18b20_read || cfg::htu21d_read || cfg::bmp_read || cfg::bmx280_read || cfg::sht3x_read) {
 		screens[screen_count++] = 3;
 	}
-	if (cfg::gps_read) {
-		screens[screen_count++] = 4;
-	}
+	
 	if (cfg::dnms_read) {
 		screens[screen_count++] = 5;
 	}
@@ -4589,17 +4575,7 @@ void setup(void) {
 	{
 		connectWifi();
 	}
-	if (cfg::gps_read) {
-#if defined(ESP8266)
-		serialGPS = new SoftwareSerial;
-		serialGPS->begin(9600, SWSERIAL_8N1, GPS_SERIAL_RX, GPS_SERIAL_TX, false, 128);
-#endif
-#if defined(ESP32)
-		serialGPS->begin(9600, SERIAL_8N1, GPS_SERIAL_RX, GPS_SERIAL_TX);
-#endif
-		debug_outln_info(F("Read GPS..."));
-		disable_unneeded_nmea();
-	}
+
 
 	powerOnTestSensors();
 	logEnabledAPIs();
@@ -4718,18 +4694,7 @@ void loop(void) {
 		}
 	}
 
-	if (cfg::gps_read && !gps_init_failed) {
-		// process serial GPS data..
-		while (serialGPS->available() > 0) {
-			gps.encode(serialGPS->read());
-		}
 
-		if ((msSince(starttime_GPS) > SAMPLETIME_GPS_MS) || send_now) {
-			// getting GPS coordinates
-			fetchSensorGPS(result_GPS);
-			starttime_GPS = act_milli;
-		}
-	}
 
 	if ((msSince(last_display_millis) > DISPLAY_UPDATE_INTERVAL_MS) &&
 			(cfg::has_display || cfg::has_sh1106 || lcd_1602 || lcd_2004)) {
@@ -4834,12 +4799,7 @@ void loop(void) {
 			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
 			result = emptyString;
 		}
-		if (cfg::gps_read) {
-			data += result_GPS;
-			sum_send_time += sendCFA(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			sum_send_time += sendSensorCommunity(result_GPS, GPS_API_PIN, F("GPS"), "GPS_");
-			result = emptyString;
-		}
+		
 		add_Value2Json(data, F("samples"), String(sample_count));
 		add_Value2Json(data, F("min_micro"), String(min_micro));
 		add_Value2Json(data, F("max_micro"), String(max_micro));
