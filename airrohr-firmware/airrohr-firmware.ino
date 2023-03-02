@@ -233,7 +233,7 @@ namespace cfg {
 	bool auto_update = AUTO_UPDATE;
 	bool use_beta = USE_BETA;
 
-
+    // display info
 	bool display_wifi_info = DISPLAY_WIFI_INFO;
 	bool display_device_info = DISPLAY_DEVICE_INFO;
 
@@ -1447,7 +1447,7 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content += FPSTR(WEB_B_BR);
 
 	add_form_checkbox_sensor(Config_pms_read, FPSTR(INTL_PMS));
-	add_form_checkbox_sensor(Config_bmp_read, FPSTR(INTL_BMP180));
+	
 	
 
 	page_content += FPSTR(WEB_BR_LF_B);
@@ -1813,11 +1813,7 @@ static void webserver_values() {
 			add_table_row_from_value(page_content, FPSTR(SENSORS_HTU21D), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_HTU21D_T, -128, 1, 0), unit_T);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_HTU21D), FPSTR(INTL_HUMIDITY), check_display_value(last_value_HTU21D_H, -1, 1, 0), unit_H);
 		}
-		if (cfg::bmp_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_BMP180), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_BMP_T, -128, 1, 0), unit_T);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_BMP180), FPSTR(INTL_PRESSURE), check_display_value(last_value_BMP_P / 100.0f, (-1 / 100.0f), 2, 0), unit_P);
-		}
+	
 		
 
 		server.sendContent(page_content);
@@ -2279,14 +2275,12 @@ static void wifiConfig() {
 	debug_outln_info_bool(F("SPS30: "), cfg::sps30_read);
 	debug_outln_info_bool(F("DHT: "), cfg::dht_read);
 	debug_outln_info_bool(F("HTU21D: "), cfg::htu21d_read);
-	debug_outln_info_bool(F("BMP: "), cfg::bmp_read);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("SensorCommunity: "), cfg::send2dusti);
 	debug_outln_info_bool(F("Madavi: "), cfg::send2madavi);
 	debug_outln_info_bool(F("CSV: "), cfg::send2csv);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("Autoupdate: "), cfg::auto_update);
-	debug_outln_info_bool(F("LCD 1602: "), !!lcd_1602);
 	debug_outln_info(F("Debug: "), String(cfg::debug));
 	wificonfig_loop = false;
 }
@@ -3839,13 +3833,6 @@ static void powerOnTestSensors() {
 		}
 	}
 
-	if (cfg::bmp_read) {
-		debug_outln_info(F("Read BMP..."));
-		if (!bmp.begin()) {
-			debug_outln_error(F("No valid BMP085 sensor, check wiring!"));
-			bmp_init_failed = true;
-		}
-	}
 
 
 }
@@ -4016,8 +4003,6 @@ void setup(void) {
 	}
 
 	init_config();
-	init_display();
-	init_lcd();
 	setupNetworkTime();
 	connectWifi();
 	setup_webserver();
@@ -4037,7 +4022,7 @@ void setup(void) {
 
 	powerOnTestSensors();
 	logEnabledAPIs();
-	logEnabledDisplays();
+	
 
 	delay(50);
 
