@@ -218,7 +218,6 @@ namespace cfg {
 	bool sps30_read = SPS30_READ;
 	bool bmp_read = BMP_READ;
 	bool bmx280_read = BMX280_READ;
-	bool sht3x_read = SHT3X_READ;
 	bool ds18b20_read = DS18B20_READ;
 	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
@@ -1498,7 +1497,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	add_form_checkbox_sensor(Config_dht_read, FPSTR(INTL_DHT22));
 	add_form_checkbox_sensor(Config_htu21d_read, FPSTR(INTL_HTU21D));
 	add_form_checkbox_sensor(Config_bmx280_read, FPSTR(INTL_BMX280));
-	add_form_checkbox_sensor(Config_sht3x_read, FPSTR(INTL_SHT3X));
 	add_form_checkbox_sensor(Config_ds18b20_read, FPSTR(INTL_DS18B20));
 
 	// Paginate page after ~ 1500 Bytes
@@ -1644,7 +1642,6 @@ static void webserver_config_send_body_post(String& page_content) {
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SPS30), sps30_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_PPD42NS), ppd_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_BMX280), bmx280_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SHT3X), sht3x_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DS18B20), ds18b20_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DNMS), dnms_read);
 	add_line_value(page_content, FPSTR(INTL_DNMS_CORRECTION), String(dnms_correction));
@@ -1904,11 +1901,7 @@ static void webserver_values() {
 				add_table_row_from_value(page_content, FPSTR(SENSORS_BMX280), FPSTR(INTL_HUMIDITY), check_display_value(last_value_BME280_H, -1, 1, 0), unit_H);
 			}
 		}
-		if (cfg::sht3x_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SHT3X), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_SHT3X_T, -128, 1, 0), unit_T);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SHT3X), FPSTR(INTL_HUMIDITY), check_display_value(last_value_SHT3X_H, -1, 1, 0), unit_H);
-		}
+		
 		if (cfg::ds18b20_read) {
 			page_content += FPSTR(EMPTY_ROW);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DS18B20), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_DS18B20_T, -128, 1, 0), unit_T);
@@ -3993,11 +3986,7 @@ static void display_values() {
 			h_value = last_value_BME280_H;
 		}
 	}
-	if (cfg::sht3x_read) {
-		h_sensor = t_sensor = FPSTR(SENSORS_SHT3X);
-		t_value = last_value_SHT3X_T;
-		h_value = last_value_SHT3X_H;
-	}
+	
 	if (cfg::dnms_read) {
 		la_sensor = FPSTR(SENSORS_DNMS);
 		la_eq_value = last_value_dnms_laeq;
@@ -4011,7 +4000,7 @@ static void display_values() {
 	if (cfg::sps30_read) {
 		screens[screen_count++] = 2;
 	}
-	if (cfg::dht_read || cfg::ds18b20_read || cfg::htu21d_read || cfg::bmp_read || cfg::bmx280_read || cfg::sht3x_read) {
+	if (cfg::dht_read || cfg::ds18b20_read || cfg::htu21d_read || cfg::bmp_read || cfg::bmx280_read) {
 		screens[screen_count++] = 3;
 	}
 	
@@ -4363,13 +4352,7 @@ static void powerOnTestSensors() {
 		}
 	}
 
-	if (cfg::sht3x_read) {
-		debug_outln_info(F("Read SHT3x..."));
-		if (!sht3x.begin()) {
-			debug_outln_error(F("Check SHT3x wiring"));
-			sht3x_init_failed = true;
-		}
-	}
+
 
 	if (cfg::ds18b20_read) {
 		ds18b20.begin();									// Start DS18B20
@@ -4775,14 +4758,7 @@ void loop(void) {
 			}
 			result = emptyString;
 		}
-		if (cfg::sht3x_read && (! sht3x_init_failed )) {
-			// getting temperature and humidity (optional)
-			fetchSensorSHT3x(result);
-			data += result;
-			sum_send_time += sendCFA(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-			sum_send_time += sendSensorCommunity(result, SHT3X_API_PIN, FPSTR(SENSORS_SHT3X), "SHT3X_");
-			result = emptyString;
-		}
+		
 		if (cfg::ds18b20_read) {
 			// getting temperature (optional)
 			fetchSensorDS18B20(result);
