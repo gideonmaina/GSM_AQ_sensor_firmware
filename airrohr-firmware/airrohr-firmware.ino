@@ -1651,7 +1651,6 @@ static void webserver_config() {
 	end_html_page(page_content);
 
 	if (server.method() == HTTP_POST) {
-		display_debug(F("Writing config"), F("and restarting"));
 		writeConfig();
 		sensor_restart();
 	}
@@ -2298,7 +2297,7 @@ static void waitForWifiToConnect(int maxRetries) {
  * WiFi auto connecting script                                   *
  *****************************************************************/
 static void connectWifi() {
-	display_debug(F("Connecting to"), String(cfg::wlanssid));
+	
 #if defined(ESP8266)
 	// Enforce Rx/Tx calibration
 	system_phy_set_powerup_option(1);
@@ -2324,7 +2323,6 @@ static void connectWifi() {
 	debug_outln_info(emptyString);
 	if (WiFi.status() != WL_CONNECTED) {
 		String fss(cfg::fs_ssid);
-		display_debug(fss.substring(0, 16), fss.substring(16));
 		wifiConfig();
 		if (WiFi.status() != WL_CONNECTED) {
 			waitForWifiToConnect(20);
@@ -2429,7 +2427,6 @@ void connectGSM(){
 	if (fona.getNetworkStatus() != GSM_CONNECTED)
 	{
 		String fss(cfg::fs_ssid);
-		display_debug(fss.substring(0, 16), fss.substring(16));
 
 		wifiConfig();
 		if (fona.getNetworkStatus() != GSM_CONNECTED)
@@ -3656,7 +3653,6 @@ static void twoStageOTAUpdate() {
 
 	newFwmd5.trim();
 	if (newFwmd5 == ESP.getSketchMD5()) {
-		display_debug(FPSTR(DBG_TXT_UPDATE), FPSTR(DBG_TXT_UPDATE_NO_UPDATE));
 		debug_outln_verbose(F("No newer version available."));
 		return;
 	}
@@ -3711,7 +3707,6 @@ static void twoStageOTAUpdate() {
 	debug_outln_info(F("launching 2nd stage"));
 	if (!launchUpdateLoader(loaderMD5)) {
 		debug_outln_error(FPSTR(DBG_TXT_UPDATE_FAILED));
-		display_debug(FPSTR(DBG_TXT_UPDATE), FPSTR(DBG_TXT_UPDATE_FAILED));
 		SPIFFS.remove(firmware_name);
 		SPIFFS.remove(firmware_md5);
 		return;
