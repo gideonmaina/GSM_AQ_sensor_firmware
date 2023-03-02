@@ -103,15 +103,9 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <DNSServer.h>
 #include "./DHT.h"
 #include <SPI.h>
-#include <Adafruit_HTU21DF.h>
-#include <Adafruit_BMP085.h>
-#include <Adafruit_SHT31.h>
 #include <StreamString.h>
 #include <DallasTemperature.h>
-#include <TinyGPS++.h>
 #include "./bmx280_i2c.h"
-#include "./sps30_i2c.h"
-#include "./dnms_i2c.h"
 #include <Adafruit_FONA.h>
 
 #if defined(INTL_BG)
@@ -172,7 +166,6 @@ const unsigned long SAMPLETIME_MS = 30000;									// time between two measureme
 const unsigned long SAMPLETIME_SDS_MS = 1000;								// time between two measurements of the SDS011, PMSx003, Honeywell PM sensor
 const unsigned long WARMUPTIME_SDS_MS = 15000;								// time needed to "warm up" the sensor before we can take the first measurement
 const unsigned long READINGTIME_SDS_MS = 5000;								// how long we read data from the PM sensors
-const unsigned long SAMPLETIME_GPS_MS = 50;
 const unsigned long DISPLAY_UPDATE_INTERVAL_MS = 5000;						// time between switching display to next "screen"
 const unsigned long ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 const unsigned long PAUSE_BETWEEN_UPDATE_ATTEMPTS_MS = ONE_DAY_IN_MS;		// check for firmware updates once a day
@@ -210,13 +203,9 @@ namespace cfg {
 
 	// (in)active sensors
 	bool dht_read = DHT_READ;
-	bool htu21d_read = HTU21D_READ;
-	bool ppd_read = PPD_READ;
 	bool sds_read = SDS_READ;
-	bool pms_read = PMS_READ;
-	bool hpm_read = HPM_READ;
-	bool sps30_read = SPS30_READ;
-	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
+	bool pms_read = PMS_READ;	
+	
 	bool gsm_capable = GSM_CAPABLE;
 
 	// send to "APIs"
@@ -301,12 +290,7 @@ enum class PmSensorCmd {
 LoggerConfig loggerConfigs[LoggerCount];
 
 long int sample_count = 0;
-bool htu21d_init_failed = false;
-bool bmp_init_failed = false;
 bool bmx280_init_failed = false;
-bool sht3x_init_failed = false;
-bool dnms_init_failed = false;
-bool gps_init_failed = false;
 bool airrohr_selftest_failed = false;
 
 #if defined(ESP8266)
@@ -318,12 +302,6 @@ WebServer server(80);
 
 #include "./airrohr-cfg.h"
 
-/*****************************************************************
- * Variables for Noise Measurement DNMS                          *
- *****************************************************************/
-float last_value_dnms_laeq = -1.0;
-float last_value_dnms_la_min = -1.0;
-float last_value_dnms_la_max = -1.0;
 
 
 
@@ -332,7 +310,7 @@ float last_value_dnms_la_max = -1.0;
  *****************************************************************/
 #if defined(ESP8266)
 SoftwareSerial serialSDS;
-SoftwareSerial* serialGPS;
+
 #endif
 #if defined(ESP32)
 #define serialSDS (Serial1)
@@ -344,41 +322,8 @@ SoftwareSerial* serialGPS;
  *****************************************************************/
 DHT dht(ONEWIRE_PIN, DHT_TYPE);
 
-/*****************************************************************
- * HTU21D declaration                                            *
- *****************************************************************/
-Adafruit_HTU21DF htu21d;
 
-/*****************************************************************
- * BMP declaration                                               *
- *****************************************************************/
-Adafruit_BMP085 bmp;
 
-/*****************************************************************
- * BMP/BME280 declaration                                        *
- *****************************************************************/
-BMX280 bmx280;
-
-/*****************************************************************
- * SHT3x declaration                                             *
- *****************************************************************/
-Adafruit_SHT31 sht3x;
-
-/*****************************************************************
- * DS18B20 declaration                                            *
- *****************************************************************/
-OneWire oneWire(ONEWIRE_PIN);
-DallasTemperature ds18b20(&oneWire);
-
-/*****************************************************************
- * GPS declaration                                               *
- *****************************************************************/
-TinyGPSPlus gps;
-
-/*****************************************************************
- * Variable Definitions for PPD24NS                              *
- * P1 for PM10 & P2 for PM25                                     *
- *****************************************************************/
 
 /*****************************************************************
 /* GSM declaration                                               *
@@ -411,7 +356,6 @@ bool send_now = false;
 unsigned long starttime;
 unsigned long time_point_device_start_ms;
 unsigned long starttime_SDS;
-unsigned long starttime_GPS;
 unsigned long act_micro;
 unsigned long act_milli;
 unsigned long last_micro = 0;
@@ -420,33 +364,16 @@ unsigned long max_micro = 0;
 
 bool is_SDS_running = true;
 bool is_PMS_running = true;
-bool is_HPM_running = true;
+
 
 unsigned long sending_time = 0;
 unsigned long last_update_attempt;
 int last_update_returncode;
 int last_sendData_returncode;
 
-float last_value_BMP_T = -128.0;
-float last_value_BMP_P = -1.0;
-float last_value_BMX280_T = -128.0;
-float last_value_BMX280_P = -1.0;
-float last_value_BME280_H = -1.0;
 float last_value_DHT_T = -128.0;
 float last_value_DHT_H = -1.0;
-float last_value_DS18B20_T = -1.0;
-float last_value_HTU21D_T = -128.0;
-float last_value_HTU21D_H = -1.0;
-float last_value_SHT3X_T = -128.0;
-float last_value_SHT3X_H = -1.0;
 
-uint32_t sds_pm10_sum = 0;
-uint32_t sds_pm25_sum = 0;
-uint32_t sds_val_count = 0;
-uint32_t sds_pm10_max = 0;
-uint32_t sds_pm10_min = 20000;
-uint32_t sds_pm25_max = 0;
-uint32_t sds_pm25_min = 20000;
 
 int pms_pm1_sum = 0;
 int pms_pm10_sum = 0;
@@ -459,64 +386,23 @@ int pms_pm10_min = 20000;
 int pms_pm25_max = 0;
 int pms_pm25_min = 20000;
 
-int hpm_pm10_sum = 0;
-int hpm_pm25_sum = 0;
-int hpm_val_count = 0;
-int hpm_pm10_max = 0;
-int hpm_pm10_min = 20000;
-int hpm_pm25_max = 0;
-int hpm_pm25_min = 20000;
-
-float last_value_SPS30_P0 = -1.0;
-float last_value_SPS30_P1 = -1.0;
-float last_value_SPS30_P2 = -1.0;
-float last_value_SPS30_P4 = -1.0;
-float last_value_SPS30_N05 = -1.0;
-float last_value_SPS30_N1 = -1.0;
-float last_value_SPS30_N25 = -1.0;
-float last_value_SPS30_N4 = -1.0;
-float last_value_SPS30_N10 = -1.0;
-float last_value_SPS30_TS = -1.0;
-float value_SPS30_P0 = 0.0;
-float value_SPS30_P1 = 0.0;
-float value_SPS30_P2 = 0.0;
-float value_SPS30_P4 = 0.0;
-float value_SPS30_N05 = 0.0;
-float value_SPS30_N1 = 0.0;
-float value_SPS30_N25 = 0.0;
-float value_SPS30_N4 = 0.0;
-float value_SPS30_N10 = 0.0;
-float value_SPS30_TS = 0.0;
 
 
-uint16_t SPS30_measurement_count = 0;
-unsigned long SPS30_read_counter = 0;
-unsigned long SPS30_read_error_counter = 0;
-unsigned long SPS30_read_timer = 0;
-bool sps30_init_failed = false;
 
-float last_value_PPD_P1 = -1.0;
-float last_value_PPD_P2 = -1.0;
-float last_value_SDS_P1 = -1.0;
-float last_value_SDS_P2 = -1.0;
+
+
+
+
 float last_value_PMS_P0 = -1.0;
 float last_value_PMS_P1 = -1.0;
 float last_value_PMS_P2 = -1.0;
-float last_value_HPM_P1 = -1.0;
-float last_value_HPM_P2 = -1.0;
-double last_value_GPS_lat = -200.0;
-double last_value_GPS_lon = -200.0;
-double last_value_GPS_alt = -1000.0;
-String last_value_GPS_date;
-String last_value_GPS_time;
-String last_value_GPS_timestamp;
+
 String last_data_string;
 int last_signal_strength;
 
 String esp_chipid;
-String last_value_SDS_version;
 
-unsigned long SDS_error_count;
+
 unsigned long sendData_error_count;
 unsigned long WiFi_error_count;
 
@@ -654,54 +540,7 @@ static void add_Value2Json(String& res, const __FlashStringHelper* type, const _
 	add_Value2Json(res, type, String(value));
 }
 
-/*****************************************************************
- * send SDS011 command (start, stop, continuous mode, version    *
- *****************************************************************/
 
-static bool SDS_checksum_valid(const uint8_t (&data)[8]) {
-    uint8_t checksum_is = 0;
-    for (unsigned i = 0; i < 6; ++i) {
-        checksum_is += data[i];
-    }
-    return (data[7] == 0xAB && checksum_is == data[6]);
-}
-
-static void SDS_rawcmd(const uint8_t cmd_head1, const uint8_t cmd_head2, const uint8_t cmd_head3) {
-	constexpr uint8_t cmd_len = 19;
-
-	uint8_t buf[cmd_len];
-	buf[0] = 0xAA;
-	buf[1] = 0xB4;
-	buf[2] = cmd_head1;
-	buf[3] = cmd_head2;
-	buf[4] = cmd_head3;
-	for (unsigned i = 5; i < 15; ++i) {
-		buf[i] = 0x00;
-	}
-	buf[15] = 0xFF;
-	buf[16] = 0xFF;
-	buf[17] = cmd_head1 + cmd_head2 + cmd_head3 - 2;
-	buf[18] = 0xAB;
-	serialSDS.write(buf, cmd_len);
-}
-
-static bool SDS_cmd(PmSensorCmd cmd) {
-	switch (cmd) {
-	case PmSensorCmd::Start:
-		SDS_rawcmd(0x06, 0x01, 0x01);
-		break;
-	case PmSensorCmd::Stop:
-		SDS_rawcmd(0x06, 0x01, 0x00);
-		break;
-	case PmSensorCmd::ContinuousMode:
-		// TODO: Check mode first before (re-)setting it
-		SDS_rawcmd(0x08, 0x01, 0x00);
-		SDS_rawcmd(0x02, 0x01, 0x00);
-		break;
-	}
-
-	return cmd != PmSensorCmd::Stop;
-}
 
 /*****************************************************************
  * send Plantower PMS sensor command start, stop, cont. mode     *
@@ -734,36 +573,6 @@ static bool PMS_cmd(PmSensorCmd cmd) {
 	return cmd != PmSensorCmd::Stop;
 }
 
-/*****************************************************************
- * send Honeywell PMS sensor command start, stop, cont. mode     *
- *****************************************************************/
-static bool HPM_cmd(PmSensorCmd cmd) {
-	static constexpr uint8_t start_cmd[] PROGMEM = {
-		0x68, 0x01, 0x01, 0x96
-	};
-	static constexpr uint8_t stop_cmd[] PROGMEM = {
-		0x68, 0x01, 0x02, 0x95
-	};
-	static constexpr uint8_t continuous_mode_cmd[] PROGMEM = {
-		0x68, 0x01, 0x40, 0x57
-	};
-	constexpr uint8_t cmd_len = array_num_elements(start_cmd);
-
-	uint8_t buf[cmd_len];
-	switch (cmd) {
-	case PmSensorCmd::Start:
-		memcpy_P(buf, start_cmd, cmd_len);
-		break;
-	case PmSensorCmd::Stop:
-		memcpy_P(buf, stop_cmd, cmd_len);
-		break;
-	case PmSensorCmd::ContinuousMode:
-		memcpy_P(buf, continuous_mode_cmd, cmd_len);
-		break;
-	}
-	serialSDS.write(buf, cmd_len);
-	return cmd != PmSensorCmd::Stop;
-}
 
 // workaround for https://github.com/plerup/espsoftwareserial/issues/127
 static void yield_for_serial_buffer(size_t length) {
@@ -777,50 +586,7 @@ static void yield_for_serial_buffer(size_t length) {
 	}
 }
 
-/*****************************************************************
- * read SDS011 sensor serial and firmware date                   *
- *****************************************************************/
-static String SDS_version_date() {
 
-	if (cfg::sds_read && !last_value_SDS_version.length()) {
-		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(DBG_TXT_SDS011_VERSION_DATE));
-		is_SDS_running = SDS_cmd(PmSensorCmd::Start);
-		delay(250);
-		serialSDS.perform_work();
-		serialSDS.flush();
-		// Query Version/Date
-		SDS_rawcmd(0x07, 0x00, 0x00);
-		delay(400);
-		const constexpr uint8_t header_cmd_response[2] = { 0xAA, 0xC5 };
-		while (serialSDS.find(header_cmd_response, sizeof(header_cmd_response))) {
-			uint8_t data[8];
-			yield_for_serial_buffer(sizeof(data));
-			unsigned r = serialSDS.readBytes(data, sizeof(data));
-			if (r == sizeof(data) && data[0] == 0x07 && SDS_checksum_valid(data)) {
-				char tmp[20];
-				snprintf_P(tmp, sizeof(tmp), PSTR("%02d-%02d-%02d(%02x%02x)"),
-					data[1], data[2], data[3], data[4], data[5]);
-				last_value_SDS_version = tmp;
-				break;
-			}
-		}
-		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(DBG_TXT_SDS011_VERSION_DATE));
-	}
-
-	return last_value_SDS_version;
-}
-
-/*****************************************************************
- * disable unneeded NMEA sentences, TinyGPS++ needs GGA, RMC     *
- *****************************************************************/
-static void disable_unneeded_nmea() {
-	serialGPS->println(F("$PUBX,40,GLL,0,0,0,0*5C"));       // Geographic position, latitude / longitude
-//	serialGPS->println(F("$PUBX,40,GGA,0,0,0,0*5A"));       // Global Positioning System Fix Data
-	serialGPS->println(F("$PUBX,40,GSA,0,0,0,0*4E"));       // GPS DOP and active satellites
-//	serialGPS->println(F("$PUBX,40,RMC,0,0,0,0*47"));       // Recommended minimum specific GPS/Transit data
-	serialGPS->println(F("$PUBX,40,GSV,0,0,0,0*59"));       // GNSS satellites in view
-	serialGPS->println(F("$PUBX,40,VTG,0,0,0,0*5E"));       // Track made good and ground speed
-}
 
 /*****************************************************************
  * read config from spiffs                                       *
@@ -1422,16 +1188,14 @@ static void webserver_config_send_body_get(String& page_content) {
 	page_content = FPSTR(WEB_BR_LF_B);
 	page_content += FPSTR(INTL_SENSORS);
 	page_content += FPSTR(WEB_B_BR);
-	add_form_checkbox_sensor(Config_sds_read, FPSTR(INTL_SDS011));
-	add_form_checkbox_sensor(Config_hpm_read, FPSTR(INTL_HPM));
-	add_form_checkbox_sensor(Config_sps30_read, FPSTR(INTL_SPS30));
+
 
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
 	page_content = emptyString;
 
 	add_form_checkbox_sensor(Config_dht_read, FPSTR(INTL_DHT22));
-	add_form_checkbox_sensor(Config_htu21d_read, FPSTR(INTL_HTU21D));
+	
 	
 	
 
@@ -1439,7 +1203,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	server.sendContent(page_content);
 	page_content = emptyString;
 	page_content += FPSTR(TABLE_TAG_OPEN);
-	add_form_input(page_content, Config_dnms_correction, FPSTR(INTL_DNMS_CORRECTION), LEN_DNMS_CORRECTION-1);
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 
 	page_content += FPSTR(WEB_BR_LF_B);
@@ -1569,13 +1332,8 @@ static void webserver_config_send_body_post(String& page_content) {
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Sensor.Community"), send2dusti);
 	add_line_value_bool(page_content, FPSTR(INTL_SEND_TO), F("Madavi"), send2madavi);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DHT22), dht_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_HTU21D), htu21d_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SDS011), sds_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_PMSx003), pms_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_HPM), hpm_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SPS30), sps30_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_PPD42NS), ppd_read);
-	add_line_value(page_content, FPSTR(INTL_DNMS_CORRECTION), String(dnms_correction));
+	
 	
 
 	// Paginate after ~ 1500 bytes
@@ -1767,51 +1525,23 @@ static void webserver_values() {
 		server.sendContent(page_content);
 		page_content = F("<table cellspacing='0' border='1' cellpadding='5'>\n"
 				  "<tr><th>" INTL_SENSOR "</th><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr>");
-		if (cfg::ppd_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_PPD42NS), FPSTR(WEB_PM1), check_display_value(last_value_PPD_P1, -1, 1, 0), FPSTR(INTL_PARTICLES_PER_LITER));
-			add_table_row_from_value(page_content, FPSTR(SENSORS_PPD42NS), FPSTR(WEB_PM25), check_display_value(last_value_PPD_P2, -1, 1, 0), FPSTR(INTL_PARTICLES_PER_LITER));
-		}
-		if (cfg::sds_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), FPSTR(WEB_PM25), check_display_value(last_value_SDS_P2, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), FPSTR(WEB_PM10), check_display_value(last_value_SDS_P1, -1, 1, 0), unit_PM);
-		}
+	
+		
 		if (cfg::pms_read) {
 			page_content += FPSTR(EMPTY_ROW);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_PMSx003), FPSTR(WEB_PM1), check_display_value(last_value_PMS_P0, -1, 1, 0), unit_PM);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_PMSx003), FPSTR(WEB_PM25), check_display_value(last_value_PMS_P2, -1, 1, 0), unit_PM);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_PMSx003), FPSTR(WEB_PM10), check_display_value(last_value_PMS_P1, -1, 1, 0), unit_PM);
 		}
-		if (cfg::hpm_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_HPM), FPSTR(WEB_PM25), check_display_value(last_value_HPM_P2, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_HPM), FPSTR(WEB_PM10), check_display_value(last_value_HPM_P1, -1, 1, 0), unit_PM);
-		}
-		if (cfg::sps30_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_PM1), check_display_value(last_value_SPS30_P0, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_PM25), check_display_value(last_value_SPS30_P2, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_PM4), check_display_value(last_value_SPS30_P4, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_PM10), check_display_value(last_value_SPS30_P1, -1, 1, 0), unit_PM);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_NC0k5), check_display_value(last_value_SPS30_N05, -1, 0, 0), unit_NC);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_NC1k0), check_display_value(last_value_SPS30_N1, -1, 0, 0), unit_NC);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_NC2k5), check_display_value(last_value_SPS30_N25, -1, 0, 0), unit_NC);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_NC4k0), check_display_value(last_value_SPS30_N4, -1, 0, 0), unit_NC);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_NC10), check_display_value(last_value_SPS30_N10, -1, 0, 0), unit_NC);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), FPSTR(WEB_TPS), check_display_value(last_value_SPS30_TS, -1, 1, 0), unit_TS);
-		}
+		
+	
 
 		if (cfg::dht_read) {
 			page_content += FPSTR(EMPTY_ROW);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DHT22), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_DHT_T, -128, 1, 0), unit_T);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_DHT22), FPSTR(INTL_HUMIDITY), check_display_value(last_value_DHT_H, -1, 1, 0), unit_H);
 		}
-		if (cfg::htu21d_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_HTU21D), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_HTU21D_T, -128, 1, 0), unit_T);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_HTU21D), FPSTR(INTL_HUMIDITY), check_display_value(last_value_HTU21D_H, -1, 1, 0), unit_H);
-		}
+	
 	
 		
 
@@ -1912,10 +1642,7 @@ static void webserver_status() {
 		add_table_row_from_value(page_content, FPSTR(INTL_TIME), ctime(&now));
 		add_table_row_from_value(page_content, F("Uptime"), delayToString(millis() - time_point_device_start_ms));
 		add_table_row_from_value(page_content, F("Reset Reason"), ESP.getResetReason());
-	if (cfg::sds_read) {
-		page_content += FPSTR(EMPTY_ROW);
-		add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), last_value_SDS_version);
-	}
+
 
 	page_content += FPSTR(EMPTY_ROW);
 	page_content += F("<tr><td colspan='2'><b>" INTL_ERROR "</b></td></tr>");
@@ -1929,12 +1656,8 @@ static void webserver_status() {
 			add_table_row_from_value(page_content, F("Data Send Return"),
 				last_sendData_returncode > 0 ? String(last_sendData_returncode) : HTTPClient::errorToString(last_sendData_returncode));
 		}
-	if (cfg::sds_read) {
-		add_table_row_from_value(page_content, FPSTR(SENSORS_SDS011), String(SDS_error_count));
-	}
-	if (cfg::sps30_read) {
-		add_table_row_from_value(page_content, FPSTR(SENSORS_SPS30), String(SPS30_read_error_counter));
-	}
+
+	
 	page_content += FPSTR(EMPTY_ROW);
 	page_content += F("<tr><td colspan='2'><b>" "LOG COUNT" "</b></td></tr>");
 
@@ -2266,14 +1989,10 @@ static void wifiConfig() {
 	debug_outln_info(F("---- Result Webconfig ----"));
 	debug_outln_info(F("WLANSSID: "), cfg::wlanssid);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_info_bool(F("PPD: "), cfg::ppd_read);
 	debug_outln_info_bool(F("SDS: "), cfg::sds_read);
 	debug_outln_info_bool(F("GSM: "), cfg::gsm_capable);
 	debug_outln_info_bool(F("PMS: "), cfg::pms_read);
-	debug_outln_info_bool(F("HPM: "), cfg::hpm_read);
-	debug_outln_info_bool(F("SPS30: "), cfg::sps30_read);
 	debug_outln_info_bool(F("DHT: "), cfg::dht_read);
-	debug_outln_info_bool(F("HTU21D: "), cfg::htu21d_read);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("SensorCommunity: "), cfg::send2dusti);
 	debug_outln_info_bool(F("Madavi: "), cfg::send2madavi);
@@ -2812,223 +2531,10 @@ static void fetchSensorDHT(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DHT22));
 }
 
-/*****************************************************************
- * read HTU21D sensor values                                     *
- *****************************************************************/
-static void fetchSensorHTU21D(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_HTU21D));
 
-	const auto t = htu21d.readTemperature();
-	const auto h = htu21d.readHumidity();
-	if (isnan(t) || isnan(h)) {
-		last_value_HTU21D_T = -128.0;
-		last_value_HTU21D_H = -1.0;
-		debug_outln_error(F("HTU21D read failed"));
-	} else {
-		last_value_HTU21D_T = t;
-		last_value_HTU21D_H = h;
-		add_Value2Json(s, F("HTU21D_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_HTU21D_T);
-		add_Value2Json(s, F("HTU21D_humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_HTU21D_H);
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
 
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_HTU21D));
-}
 
-/*****************************************************************
- * read BMP180 sensor values                                     *
- *****************************************************************/
-static void fetchSensorBMP(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_BMP180));
 
-	const auto p = bmp.readPressure();
-	const auto t = bmp.readTemperature();
-	if (isnan(p) || isnan(t)) {
-		last_value_BMP_T = -128.0;
-		last_value_BMP_P = -1.0;
-		debug_outln_error(F("BMP180 read failed"));
-	} else {
-		last_value_BMP_T = t;
-		last_value_BMP_P = p;
-		add_Value2Json(s, F("BMP_pressure"), FPSTR(DBG_TXT_PRESSURE), last_value_BMP_P);
-		add_Value2Json(s, F("BMP_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_BMP_T);
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_BMP180));
-}
-
-/*****************************************************************
- * read SHT3x sensor values                                      *
- *****************************************************************/
-static void fetchSensorSHT3x(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SHT3X));
-
-	const auto t = sht3x.readTemperature();
-	const auto h = sht3x.readHumidity();
-	if (isnan(h) || isnan(t)) {
-		last_value_SHT3X_T = -128.0;
-		last_value_SHT3X_H = -1.0;
-		debug_outln_error(F("SHT3X read failed"));
-	} else {
-		last_value_SHT3X_T = t;
-		last_value_SHT3X_H = h;
-		add_Value2Json(s, F("SHT3X_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_SHT3X_T);
-		add_Value2Json(s, F("SHT3X_humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_SHT3X_H);
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SHT3X));
-}
-
-/*****************************************************************
- * read BMP280/BME280 sensor values                              *
- *****************************************************************/
-static void fetchSensorBMX280(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_BMX280));
-
-	bmx280.takeForcedMeasurement();
-	const auto t = bmx280.readTemperature();
-	const auto p = bmx280.readPressure();
-	const auto h = bmx280.readHumidity();
-	if (isnan(t) || isnan(p)) {
-		last_value_BMX280_T = -128.0;
-		last_value_BMX280_P = -1.0;
-		last_value_BME280_H = -1.0;
-		debug_outln_error(F("BMP/BME280 read failed"));
-	} else {
-		last_value_BMX280_T = t;
-		last_value_BMX280_P = p;
-		if (bmx280.sensorID() == BME280_SENSOR_ID) {
-			add_Value2Json(s, F("BME280_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_BMX280_T);
-			add_Value2Json(s, F("BME280_pressure"), FPSTR(DBG_TXT_PRESSURE), last_value_BMX280_P);
-			last_value_BME280_H = h;
-			add_Value2Json(s, F("BME280_humidity"), FPSTR(DBG_TXT_HUMIDITY), last_value_BME280_H);
-		} else {
-			add_Value2Json(s, F("BMP280_pressure"), FPSTR(DBG_TXT_PRESSURE), last_value_BMX280_P);
-			add_Value2Json(s, F("BMP280_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_BMX280_T);
-		}
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_BMX280));
-}
-
-/*****************************************************************
- * read DS18B20 sensor values                                    *
- *****************************************************************/
-static void fetchSensorDS18B20(String& s) {
-	float t;
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DS18B20));
-
-	//it's very unlikely (-127: impossible) to get these temperatures in reality. Most times this means that the sensor is currently faulty
-	//try 5 times to read the sensor, otherwise fail
-	const int MAX_ATTEMPTS = 5;
-	int count = 0;
-	do {
-		ds18b20.requestTemperatures();
-		//for now, we want to read only the first sensor
-		t = ds18b20.getTempCByIndex(0);
-		++count;
-		debug_outln_info(F("DS18B20 trying...."));
-	} while (count < MAX_ATTEMPTS && (isnan(t) || t >= 85.0f || t <= (-127.0f)));
-
-	if (count == MAX_ATTEMPTS) {
-		last_value_DS18B20_T = -128.0;
-		debug_outln_error(F("DS18B20 read failed"));
-	} else {
-		last_value_DS18B20_T = t;
-		add_Value2Json(s, F("DS18B20_temperature"), FPSTR(DBG_TXT_TEMPERATURE), last_value_DS18B20_T);
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DS18B20));
-}
-
-/*****************************************************************
- * read SDS011 sensor values                                     *
- *****************************************************************/
-static void fetchSensorSDS(String& s) {
-
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SDS011));
-
-	if (cfg::sending_intervall_ms > (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS) &&
-		msSince(starttime) < (cfg::sending_intervall_ms - (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS))) {
-		if (is_SDS_running) {
-			is_SDS_running = SDS_cmd(PmSensorCmd::Stop);
-		}
-	} else {
-		if (! is_SDS_running) {
-			is_SDS_running = SDS_cmd(PmSensorCmd::Start);
-		}
-
-		const uint8_t constexpr header_measurement[2] = { 0xAA, 0xC0 };
-
-		while (serialSDS.available() >= 10 &&
-					serialSDS.find(header_measurement, sizeof(header_measurement))) {
-			uint8_t data[8];
-			yield_for_serial_buffer(sizeof(data));
-			unsigned r = serialSDS.readBytes(data, sizeof(data));
-			if (r == sizeof(data) && SDS_checksum_valid(data)) {
-				uint32_t pm25_serial = data[0] | (data[1] << 8);
-				uint32_t pm10_serial = data[2] | (data[3] << 8);
-
-				if (msSince(starttime) > (cfg::sending_intervall_ms - READINGTIME_SDS_MS)) {
-					sds_pm10_sum += pm10_serial;
-					sds_pm25_sum += pm25_serial;
-					if (sds_pm10_min > pm10_serial) {
-						sds_pm10_min = pm10_serial;
-					}
-					if (sds_pm10_max < pm10_serial) {
-						sds_pm10_max = pm10_serial;
-					}
-					if (sds_pm25_min > pm25_serial) {
-						sds_pm25_min = pm25_serial;
-					}
-					if (sds_pm25_max < pm25_serial) {
-						sds_pm25_max = pm25_serial;
-					}
-					debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial / 10.0f));
-					debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial / 10.0f));
-					sds_val_count++;
-				}
-			}
-		}
-	}
-	if (send_now) {
-		last_value_SDS_P1 = -1;
-		last_value_SDS_P2 = -1;
-		if (sds_val_count > 2) {
-			sds_pm10_sum = sds_pm10_sum - sds_pm10_min - sds_pm10_max;
-			sds_pm25_sum = sds_pm25_sum - sds_pm25_min - sds_pm25_max;
-			sds_val_count = sds_val_count - 2;
-		}
-		if (sds_val_count > 0) {
-			last_value_SDS_P1 = float(sds_pm10_sum) / (sds_val_count * 10.0f);
-			last_value_SDS_P2 = float(sds_pm25_sum) / (sds_val_count * 10.0f);
-			add_Value2Json(s, F("SDS_P1"), F("PM10:  "), last_value_SDS_P1);
-			add_Value2Json(s, F("SDS_P2"), F("PM2.5: "), last_value_SDS_P2);
-			debug_outln_info(FPSTR(DBG_TXT_SEP));
-			if (sds_val_count < 3) {
-				SDS_error_count++;
-			}
-		}
-		else {
-			SDS_error_count++;
-		}
-		sds_pm10_sum = 0;
-		sds_pm25_sum = 0;
-		sds_val_count = 0;
-		sds_pm10_max = 0;
-		sds_pm10_min = 20000;
-		sds_pm25_max = 0;
-		sds_pm25_min = 20000;
-		if ((cfg::sending_intervall_ms > (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS))) {
-
-			if (is_SDS_running) {
-				is_SDS_running = SDS_cmd(PmSensorCmd::Stop);
-			}
-		}
-	}
-
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SDS011));
-}
 
 /*****************************************************************
  * read Plantronic PM sensor sensor values                       *
@@ -3201,320 +2707,6 @@ static void fetchSensorPMS(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PMSx003));
 }
 
-/*****************************************************************
- * read Honeywell PM sensor sensor values                        *
- *****************************************************************/
-static void fetchSensorHPM(String& s) {
-	char buffer;
-	int value;
-	int len = 0;
-	int pm10_serial = 0;
-	int pm25_serial = 0;
-	int checksum_is = 0;
-	int checksum_should = 0;
-	bool checksum_ok = false;
-
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_HPM));
-	if (msSince(starttime) < (cfg::sending_intervall_ms - (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS))) {
-		if (is_HPM_running) {
-			is_HPM_running = HPM_cmd(PmSensorCmd::Stop);
-		}
-	} else {
-		if (! is_HPM_running) {
-			is_HPM_running = HPM_cmd(PmSensorCmd::Start);
-		}
-
-		while (serialSDS.available() > 0) {
-			buffer = serialSDS.read();
-			debug_outln(String(len) + " - " + String(buffer, DEC) + " - " + String(buffer, HEX) + " - " + int(buffer) + " .", DEBUG_MAX_INFO);
-//			"aa" = 170, "ab" = 171, "c0" = 192
-			value = int(buffer);
-			switch (len) {
-			case 0:
-				if (value != 66) {
-					len = -1;
-				};
-				break;
-			case 1:
-				if (value != 77) {
-					len = -1;
-				};
-				break;
-			case 2:
-				checksum_is = value;
-				break;
-			case 6:
-				pm25_serial += ( value << 8);
-				break;
-			case 7:
-				pm25_serial += value;
-				break;
-			case 8:
-				pm10_serial = ( value << 8);
-				break;
-			case 9:
-				pm10_serial += value;
-				break;
-			case 30:
-				checksum_should = ( value << 8 );
-				break;
-			case 31:
-				checksum_should += value;
-				break;
-			}
-			if (len > 2 && len < 30) { checksum_is += value; }
-			len++;
-			if (len == 32) {
-				debug_outln_verbose(FPSTR(DBG_TXT_CHECKSUM_IS), String(checksum_is + 143));
-				debug_outln_verbose(FPSTR(DBG_TXT_CHECKSUM_SHOULD), String(checksum_should));
-				if (checksum_should == (checksum_is + 143)) {
-					checksum_ok = true;
-				} else {
-					len = 0;
-				};
-				if (checksum_ok && (long(msSince(starttime)) > (long(cfg::sending_intervall_ms) - long(READINGTIME_SDS_MS)))) {
-					if ((! isnan(pm10_serial)) && (! isnan(pm25_serial))) {
-						hpm_pm10_sum += pm10_serial;
-						hpm_pm25_sum += pm25_serial;
-						if (hpm_pm10_min > pm10_serial) {
-							hpm_pm10_min = pm10_serial;
-						}
-						if (hpm_pm10_max < pm10_serial) {
-							hpm_pm10_max = pm10_serial;
-						}
-						if (hpm_pm25_min > pm25_serial) {
-							hpm_pm25_min = pm25_serial;
-						}
-						if (hpm_pm25_max < pm25_serial) {
-							hpm_pm25_max = pm25_serial;
-						}
-						debug_outln_verbose(F("PM2.5 (sec.): "), String(pm25_serial));
-						debug_outln_verbose(F("PM10 (sec.) : "), String(pm10_serial));
-						hpm_val_count++;
-					}
-					len = 0;
-					checksum_ok = false;
-					pm10_serial = 0;
-					pm25_serial = 0;
-					checksum_is = 0;
-				}
-			}
-			yield();
-		}
-
-	}
-	if (send_now) {
-		last_value_HPM_P1 = -1.0f;
-		last_value_HPM_P2 = -1.0f;
-		if (hpm_val_count > 2) {
-			hpm_pm10_sum = hpm_pm10_sum - hpm_pm10_min - hpm_pm10_max;
-			hpm_pm25_sum = hpm_pm25_sum - hpm_pm25_min - hpm_pm25_max;
-			hpm_val_count = hpm_val_count - 2;
-		}
-		if (hpm_val_count > 0) {
-			last_value_HPM_P1 = float(hpm_pm10_sum) / float(hpm_val_count);
-			last_value_HPM_P2 = float(hpm_pm25_sum) / float(hpm_val_count);
-			add_Value2Json(s, F("HPM_P1"), F("PM2.5: "), last_value_HPM_P1);
-			add_Value2Json(s, F("HPM_P2"), F("PM10:  "), last_value_HPM_P2);
-			debug_outln_info(FPSTR(DBG_TXT_SEP));
-		}
-		hpm_pm10_sum = 0;
-		hpm_pm25_sum = 0;
-		hpm_val_count = 0;
-		hpm_pm10_max = 0;
-		hpm_pm10_min = 20000;
-		hpm_pm25_max = 0;
-		hpm_pm25_min = 20000;
-		if (cfg::sending_intervall_ms > (WARMUPTIME_SDS_MS + READINGTIME_SDS_MS)) {
-			is_HPM_running = HPM_cmd(PmSensorCmd::Stop);
-		}
-	}
-
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_HPM));
-}
-
-/*****************************************************************
- * read PPD42NS sensor values                                    *
- *****************************************************************/
-static void fetchSensorPPD(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_PPD42NS));
-
-	if (msSince(starttime) <= SAMPLETIME_MS) {
-
-		// Read pins connected to ppd42ns
-		boolean valP1 = digitalRead(PPD_PIN_PM1);
-		boolean valP2 = digitalRead(PPD_PIN_PM2);
-
-		if (valP1 == LOW && trigP1 == false) {
-			trigP1 = true;
-			trigOnP1 = act_micro;
-		}
-
-		if (valP1 == HIGH && trigP1 == true) {
-			lowpulseoccupancyP1 += act_micro - trigOnP1;
-			trigP1 = false;
-		}
-
-		if (valP2 == LOW && trigP2 == false) {
-			trigP2 = true;
-			trigOnP2 = act_micro;
-		}
-
-		if (valP2 == HIGH && trigP2 == true) {
-			unsigned long durationP2 = act_micro - trigOnP2;
-			lowpulseoccupancyP2 += durationP2;
-			trigP2 = false;
-		}
-
-	}
-	// Checking if it is time to sample
-	if (send_now) {
-		auto calcConcentration = [](const float ratio) {
-			/* spec sheet curve*/
-			return (1.1f * ratio * ratio * ratio - 3.8f * ratio * ratio + 520.0f * ratio + 0.62f);
-		};
-
-		last_value_PPD_P1 = -1;
-		last_value_PPD_P2 = -1;
-		float ratio = lowpulseoccupancyP1 / (SAMPLETIME_MS * 10.0f);
-		float concentration = calcConcentration(ratio);
-
-		// json for push to api / P1
-		last_value_PPD_P1 = concentration;
-		add_Value2Json(s, F("durP1"), F("LPO P10    : "), lowpulseoccupancyP1);
-		add_Value2Json(s, F("ratioP1"), F("Ratio PM10%: "), ratio);
-		add_Value2Json(s, F("P1"), F("PM10 Count : "), last_value_PPD_P1);
-
-		ratio = lowpulseoccupancyP2 / (SAMPLETIME_MS * 10.0f);
-		concentration = calcConcentration(ratio);
-
-		// json for push to api / P2
-		last_value_PPD_P2 = concentration;
-		add_Value2Json(s, F("durP2"), F("LPO PM25   : "), lowpulseoccupancyP2);
-		add_Value2Json(s, F("ratioP2"), F("Ratio PM25%: "), ratio);
-		add_Value2Json(s, F("P2"), F("PM25 Count : "), last_value_PPD_P2);
-
-		debug_outln_info(FPSTR(DBG_TXT_SEP));
-	}
-
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_PPD42NS));
-}
-
-/*****************************************************************
-   read SPS30 PM sensor values
- *****************************************************************/
-static void fetchSensorSPS30(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SPS30));
-
-	last_value_SPS30_P0 = value_SPS30_P0 / SPS30_measurement_count;
-	last_value_SPS30_P2 = value_SPS30_P2 / SPS30_measurement_count;
-	last_value_SPS30_P4 = value_SPS30_P4 / SPS30_measurement_count;
-	last_value_SPS30_P1 = value_SPS30_P1 / SPS30_measurement_count;
-	last_value_SPS30_N05 = value_SPS30_N05 / SPS30_measurement_count;
-	last_value_SPS30_N1 = value_SPS30_N1 / SPS30_measurement_count;
-	last_value_SPS30_N25 = value_SPS30_N25 / SPS30_measurement_count;
-	last_value_SPS30_N4 = value_SPS30_N4 / SPS30_measurement_count;
-	last_value_SPS30_N10 = value_SPS30_N10 / SPS30_measurement_count;
-	last_value_SPS30_TS = value_SPS30_TS / SPS30_measurement_count;
-
-	add_Value2Json(s, F("SPS30_P0"), F("PM1.0: "), last_value_SPS30_P0);
-	add_Value2Json(s, F("SPS30_P2"), F("PM2.5: "), last_value_SPS30_P2);
-	add_Value2Json(s, F("SPS30_P4"), F("PM4.0: "), last_value_SPS30_P4);
-	add_Value2Json(s, F("SPS30_P1"), F("PM 10: "), last_value_SPS30_P1);
-	add_Value2Json(s, F("SPS30_N05"), F("NC0.5: "), last_value_SPS30_N05);
-	add_Value2Json(s, F("SPS30_N1"), F("NC1.0: "), last_value_SPS30_N1);
-	add_Value2Json(s, F("SPS30_N25"), F("NC2.5: "), last_value_SPS30_N25);
-	add_Value2Json(s, F("SPS30_N4"), F("NC4.0: "), last_value_SPS30_N4);
-	add_Value2Json(s, F("SPS30_N10"), F("NC10:  "), last_value_SPS30_N10);
-	add_Value2Json(s, F("SPS30_TS"), F("TPS:   "), last_value_SPS30_TS);
-
-	debug_outln_info(F("SPS30 read counter: "), String(SPS30_read_counter));
-	debug_outln_info(F("SPS30 read error counter: "), String(SPS30_read_error_counter));
-
-	SPS30_measurement_count = 0;
-	SPS30_read_counter = 0;
-	SPS30_read_error_counter = 0;
-	value_SPS30_P0 = 0.0;
-	value_SPS30_P2 = 0.0;
-	value_SPS30_P4 = 0.0;
-	value_SPS30_P1 = 0.0;
-	value_SPS30_N05 = 0.0;
-	value_SPS30_N1 = 0.0;
-	value_SPS30_N25 = 0.0;
-	value_SPS30_N4 = 0.0;
-	value_SPS30_N10 = 0.0;
-	value_SPS30_TS = 0.0;
-
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SPS30));
-}
-
-
-
-/*****************************************************************
- * read GPS sensor values                                        *
- *****************************************************************/
-static void fetchSensorGPS(String& s) {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), "GPS");
-
-	if (gps.location.isUpdated()) {
-		if (gps.location.isValid()) {
-			last_value_GPS_lat = gps.location.lat();
-			last_value_GPS_lon = gps.location.lng();
-		} else {
-			last_value_GPS_lat = -200;
-			last_value_GPS_lon = -200;
-			debug_outln_verbose(F("Lat/Lng INVALID"));
-		}
-		if (gps.altitude.isValid()) {
-			last_value_GPS_alt = gps.altitude.meters();
-			String gps_alt(last_value_GPS_lat);
-		} else {
-			last_value_GPS_alt = -1000;
-			debug_outln_verbose(F("Altitude INVALID"));
-		}
-		if (gps.date.isValid()) {
-			char gps_date[16];
-			snprintf_P(gps_date, sizeof(gps_date), PSTR("%02d/%02d/%04d"),
-					gps.date.month(), gps.date.day(), gps.date.year());
-			last_value_GPS_date = gps_date;
-			last_value_GPS_timestamp = gps_date;
-		} else {
-			debug_outln_verbose(F("Date INVALID"));
-		}
-		if (gps.time.isValid()) {
-			char gps_time[20];
-			snprintf_P(gps_time, sizeof(gps_time), PSTR("%02d:%02d:%02d.%02d"),
-					gps.time.hour(), gps.time.minute(), gps.time.second(), gps.time.centisecond());
-			last_value_GPS_time = gps_time;
-			last_value_GPS_timestamp += "T";
-			last_value_GPS_timestamp += gps_time;
-		} else {
-			debug_outln_verbose(F("Time: INVALID"));
-		}
-	}
-
-	if (send_now) {
-		debug_outln_info(F("Lat: "), String(last_value_GPS_lat, 6));
-		debug_outln_info(F("Lng: "), String(last_value_GPS_lon, 6));
-		debug_outln_info(F("Date: "), last_value_GPS_date);
-		debug_outln_info(F("Time "), last_value_GPS_time);
-
-		add_Value2Json(s, F("GPS_lat"), String(last_value_GPS_lat, 6));
-		add_Value2Json(s, F("GPS_lon"), String(last_value_GPS_lon, 6));
-		add_Value2Json(s, F("GPS_height"), F("Altitude: "), last_value_GPS_alt);
-		add_Value2Json(s, F("GPS_timestamp"), last_value_GPS_timestamp);
-		debug_outln_info(FPSTR(DBG_TXT_SEP));
-
-	}
-
-	if ( count_sends > 0 && gps.charsProcessed() < 10) {
-		debug_outln_error(F("No GPS data received: check wiring"));
-		gps_init_failed = true;
-	}
-
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), "GPS");
-}
 
 /*****************************************************************
  * Switch status LEDs on/ off                                    *
@@ -3537,7 +2729,7 @@ static bool fwDownloadStream(WiFiClientSecure& client, const String& url, Stream
 	int bytes_written = -1;
 
 	http.setTimeout(20 * 1000);
-	http.setUserAgent(SOFTWARE_VERSION + ' ' + esp_chipid + ' ' + SDS_version_date() + ' ' +
+	http.setUserAgent(SOFTWARE_VERSION + ' ' + esp_chipid + ' ' +
 				 String(cfg::current_lang) + ' ' + String(CURRENT_LANG) + ' ' +
 				 String(cfg::use_beta ? F("BETA") : F("")));
     http.setReuse(false);
@@ -3723,70 +2915,10 @@ static String displayGenerateFooter(unsigned int screen_count) {
 }
 
 
-/*****************************************************************
- * Init BMP280/BME280                                            *
- *****************************************************************/
-static bool initBMX280(char addr) {
-	debug_out(String(F("Trying BMP280/BME280 sensor on ")) + String(addr, HEX), DEBUG_MIN_INFO);
 
-	if (bmx280.begin(addr)) {
-		debug_outln_info(FPSTR(DBG_TXT_FOUND));
-		bmx280.setSampling(
-			BMX280::MODE_FORCED,
-			BMX280::SAMPLING_X1,
-			BMX280::SAMPLING_X1,
-			BMX280::SAMPLING_X1);
-		return true;
-	} else {
-		debug_outln_info(FPSTR(DBG_TXT_NOT_FOUND));
-		return false;
-	}
-}
-
-/*****************************************************************
-   Init SPS30 PM Sensor
- *****************************************************************/
-static void initSPS30() {
-	char serial[SPS_MAX_SERIAL_LEN];
-	debug_out(F("Trying SPS30 sensor on 0x69H "), DEBUG_MIN_INFO);
-	sps30_reset();
-	delay(200);
-	if ( sps30_get_serial(serial) != 0 ) {
-		debug_outln_info(FPSTR(DBG_TXT_NOT_FOUND));
-
-		debug_outln_info(F("Check SPS30 wiring"));
-		sps30_init_failed = true;
-		return;
-	}
-	debug_outln_info(F(" ... found, Serial-No.: "), String(serial));
-	if (sps30_set_fan_auto_cleaning_interval(SPS30_AUTO_CLEANING_INTERVAL) != 0) {
-		debug_outln_error(F("setting of Auto Cleaning Intervall SPS30 failed!"));
-		sps30_init_failed = true;
-		return;
-	}
-	delay(100);
-	if (sps30_start_measurement() != 0) {
-		debug_outln_error(F("SPS30 error starting measurement"));
-		sps30_init_failed = true;
-		return;
-	}
-}
 
 
 static void powerOnTestSensors() {
-	if (cfg::ppd_read) {
-		pinMode(PPD_PIN_PM1, INPUT_PULLUP);					// Listen at the designated PIN
-		pinMode(PPD_PIN_PM2, INPUT_PULLUP);					// Listen at the designated PIN
-		debug_outln_info(F("Read PPD..."));
-	}
-
-	if (cfg::sds_read) {
-		debug_outln_info(F("Read SDS...: "), SDS_version_date());
-		SDS_cmd(PmSensorCmd::ContinuousMode);
-		delay(100);
-		debug_outln_info(F("Stopping SDS011..."));
-		is_SDS_running = SDS_cmd(PmSensorCmd::Stop);
-	}
 
 	if (cfg::pms_read) {
 		debug_outln_info(F("Read PMS(1,3,5,6,7)003..."));
@@ -3798,34 +2930,10 @@ static void powerOnTestSensors() {
 		is_PMS_running = PMS_cmd(PmSensorCmd::Stop);
 	}
 
-	if (cfg::hpm_read) {
-		debug_outln_info(F("Read HPM..."));
-		HPM_cmd(PmSensorCmd::Start);
-		delay(100);
-		HPM_cmd(PmSensorCmd::ContinuousMode);
-		delay(100);
-		debug_outln_info(F("Stopping HPM..."));
-		is_HPM_running = HPM_cmd(PmSensorCmd::Stop);
-	}
-
-	if (cfg::sps30_read) {
-		debug_outln_info(F("Read SPS30..."));
-		initSPS30();
-	}
 
 	if (cfg::dht_read) {
 		dht.begin();										// Start DHT
 		debug_outln_info(F("Read DHT..."));
-	}
-
-	if (cfg::htu21d_read) {
-		debug_outln_info(F("Read HTU21D..."));
-		// begin() might return false when using Si7021
-		// so validate reading via Humidity (will return 0.0 when failed)
-		if (!htu21d.begin() && htu21d.readHumidity() < 1.0f) {
-			debug_outln_error(F("Check HTU21D wiring"));
-			htu21d_init_failed = true;
-		}
 	}
 
 
@@ -4006,7 +3114,7 @@ void setup(void) {
 
 	if (gsm_capable)
 	{
-		is_SDS_running = SDS_cmd(PmSensorCmd::Stop);
+		// is_SDS_running = SDS_cmd(PmSensorCmd::Stop);
 		connectGSM();
 	}
 	else
@@ -4038,8 +3146,8 @@ void setup(void) {
  * And action                                                    *
  *****************************************************************/
 void loop(void) {
-	String result_PPD, result_SDS, result_PMS, result_HPM;
-	String result_GPS, result_DNMS;
+	String result_SDS, result_PMS;
+
 
 	unsigned sum_send_time = 0;
 
@@ -4081,55 +3189,14 @@ void loop(void) {
 		last_update_attempt = act_milli;
 	}
 
-	if (cfg::sps30_read && ( !sps30_init_failed)) {
-		if ((msSince(starttime) - SPS30_read_timer) > SPS30_WAITING_AFTER_LAST_READ) {
-			struct sps30_measurement sps30_values;
-			int16_t ret_SPS30;
-
-			SPS30_read_timer = msSince(starttime);
-
-			ret_SPS30 = sps30_read_measurement(&sps30_values);
-			++SPS30_read_counter;
-			if (ret_SPS30 < 0) {
-				debug_outln_info(F("SPS30 error reading measurement"));
-				SPS30_read_error_counter++;
-			} else {
-				if (SPS_IS_ERR_STATE(ret_SPS30)) {
-					debug_outln_info(F("SPS30 measurements may not be accurate"));
-					SPS30_read_error_counter++;
-				}
-				value_SPS30_P0 += sps30_values.mc_1p0;
-				value_SPS30_P2 += sps30_values.mc_2p5;
-				value_SPS30_P4 += sps30_values.mc_4p0;
-				value_SPS30_P1 += sps30_values.mc_10p0;
-				value_SPS30_N05 += sps30_values.nc_0p5;
-				value_SPS30_N1 += sps30_values.nc_1p0;
-				value_SPS30_N25 += sps30_values.nc_2p5;
-				value_SPS30_N4 += sps30_values.nc_4p0;
-				value_SPS30_N10 += sps30_values.nc_10p0;
-				value_SPS30_TS += sps30_values.tps;
-				++SPS30_measurement_count;
-			}
-		}
-	}
-
-	if (cfg::ppd_read) {
-		fetchSensorPPD(result_PPD);
-	}
-
 	if ((msSince(starttime_SDS) > SAMPLETIME_SDS_MS) || send_now) {
 		starttime_SDS = act_milli;
-		if (cfg::sds_read) {
-			fetchSensorSDS(result_SDS);
-		}
 
 		if (cfg::pms_read) {
 			fetchSensorPMS(result_PMS);			
 		}
 
-		if (cfg::hpm_read) {
-			fetchSensorHPM(result_HPM);
-		}
+		
 	}
 
 
@@ -4149,33 +3216,14 @@ void loop(void) {
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
 
-		if (cfg::ppd_read) {
-			data += result_PPD;
-			sum_send_time += sendCFA(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");
-			sum_send_time += sendSensorCommunity(result_PPD, PPD_API_PIN, FPSTR(SENSORS_PPD42NS), "PPD_");		
-		}
-		if (cfg::sds_read) {
-			data += result_SDS;
-			sum_send_time += sendCFA(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-			sum_send_time += sendSensorCommunity(result_SDS, SDS_API_PIN, FPSTR(SENSORS_SDS011), "SDS_");
-		}
+	
 		if (cfg::pms_read) {
 			data += result_PMS;
 			sum_send_time += sendCFA(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 			sum_send_time += sendSensorCommunity(result_PMS, PMS_API_PIN, FPSTR(SENSORS_PMSx003), "PMS_");
 		}
-		if (cfg::hpm_read) {
-			data += result_HPM;
-			sum_send_time += sendCFA(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-			sum_send_time += sendSensorCommunity(result_HPM, HPM_API_PIN, FPSTR(SENSORS_HPM), "HPM_");
-		}
-		if (cfg::sps30_read && (! sps30_init_failed)) {
-			fetchSensorSPS30(result);
-			data += result;
-			sum_send_time += sendCFA(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-			sum_send_time += sendSensorCommunity(result, SPS30_API_PIN, FPSTR(SENSORS_SPS30), "SPS30_");
-			result = emptyString;
-		}
+	
+	
 		if (cfg::dht_read) {
 			// getting temperature and humidity (optional)
 			fetchSensorDHT(result);
@@ -4184,14 +3232,7 @@ void loop(void) {
 			sum_send_time += sendSensorCommunity(result, DHT_API_PIN, FPSTR(SENSORS_DHT22), "DHT_");
 			result = emptyString;
 		}
-		if (cfg::htu21d_read && (! htu21d_init_failed)) {
-			// getting temperature and humidity (optional)
-			fetchSensorHTU21D(result);
-			data += result;
-			sum_send_time += sendCFA(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
-			result = emptyString;
-		}
+		
 		
 
 		
