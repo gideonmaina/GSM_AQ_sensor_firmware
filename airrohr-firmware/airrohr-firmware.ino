@@ -216,7 +216,6 @@ namespace cfg {
 	bool pms_read = PMS_READ;
 	bool hpm_read = HPM_READ;
 	bool sps30_read = SPS30_READ;
-	bool dnms_read = DNMS_READ;
 	char dnms_correction[LEN_DNMS_CORRECTION] = DNMS_CORRECTION;
 	bool gsm_capable = GSM_CAPABLE;
 
@@ -1496,8 +1495,6 @@ static void webserver_config_send_body_get(String& page_content) {
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
 	page_content = emptyString;
-
-	add_form_checkbox_sensor(Config_dnms_read, FPSTR(INTL_DNMS));
 	page_content += FPSTR(TABLE_TAG_OPEN);
 	add_form_input(page_content, Config_dnms_correction, FPSTR(INTL_DNMS_CORRECTION), LEN_DNMS_CORRECTION-1);
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
@@ -1635,7 +1632,6 @@ static void webserver_config_send_body_post(String& page_content) {
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_HPM), hpm_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_SPS30), sps30_read);
 	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_PPD42NS), ppd_read);
-	add_line_value_bool(page_content, FPSTR(INTL_READ_FROM), FPSTR(SENSORS_DNMS), dnms_read);
 	add_line_value(page_content, FPSTR(INTL_DNMS_CORRECTION), String(dnms_correction));
 	
 
@@ -1884,14 +1880,6 @@ static void webserver_values() {
 			page_content += FPSTR(EMPTY_ROW);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_BMP180), FPSTR(INTL_TEMPERATURE), check_display_value(last_value_BMP_T, -128, 1, 0), unit_T);
 			add_table_row_from_value(page_content, FPSTR(SENSORS_BMP180), FPSTR(INTL_PRESSURE), check_display_value(last_value_BMP_P / 100.0f, (-1 / 100.0f), 2, 0), unit_P);
-		}
-	
-		
-		if (cfg::dnms_read) {
-			page_content += FPSTR(EMPTY_ROW);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LEQ_A), check_display_value(last_value_dnms_laeq, -1, 1, 0), unit_LA);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MIN), check_display_value(last_value_dnms_la_min, -1, 1, 0), unit_LA);
-			add_table_row_from_value(page_content, FPSTR(SENSORS_DNMS), FPSTR(INTL_LA_MAX), check_display_value(last_value_dnms_la_max, -1, 1, 0), unit_LA);
 		}
 		
 
@@ -2355,7 +2343,6 @@ static void wifiConfig() {
 	debug_outln_info_bool(F("DHT: "), cfg::dht_read);
 	debug_outln_info_bool(F("HTU21D: "), cfg::htu21d_read);
 	debug_outln_info_bool(F("BMP: "), cfg::bmp_read);
-	debug_outln_info_bool(F("DNMS: "), cfg::dnms_read);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("SensorCommunity: "), cfg::send2dusti);
 	debug_outln_info_bool(F("Madavi: "), cfg::send2madavi);
@@ -3535,65 +3522,7 @@ static void fetchSensorSPS30(String& s) {
 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SPS30));
 }
 
-/*****************************************************************
-   read DNMS values
- *****************************************************************/
 
-static float readDNMScorrection() {
-	char* pEnd = nullptr;
-	// Avoiding atof() here as this adds a lot (~ 9kb) of code size
-	float r = float(strtol(cfg::dnms_correction, &pEnd, 10));
-	if (pEnd && pEnd[0] == '.' && pEnd[1] >= '0' && pEnd[1] <= '9') {
-		r += (r >= 0 ? 1.0 : -1.0) * ((pEnd[1] - '0') / 10.0);
-	}
-	return r;
-}
-
-static void fetchSensorDNMS(String& s) {
-	static bool dnms_error = false;
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_DNMS));
-	last_value_dnms_laeq = -1.0;
-	last_value_dnms_la_min = -1.0;
-	last_value_dnms_la_max = -1.0;
-
-	if (dnms_calculate_leq() !=  0) {
-		// error
-		dnms_error = true;
-	}
-	uint16_t data_ready = 0;
-	dnms_error = true;
-	for (unsigned i = 0; i < 20; i++) {
-		delay(2);
-		int16_t ret_dnms = dnms_read_data_ready(&data_ready);
-		if ((ret_dnms == 0) && (data_ready != 0)) {
-			dnms_error = false;
-			break;
-		}
-	}
-	if (!dnms_error) {
-		struct dnms_measurements dnms_values;
-		if (dnms_read_leq(&dnms_values) == 0) {
-			float dnms_corr_value = readDNMScorrection();
-			last_value_dnms_laeq = dnms_values.leq_a + dnms_corr_value;
-			last_value_dnms_la_min = dnms_values.leq_a_min + dnms_corr_value;
-			last_value_dnms_la_max = dnms_values.leq_a_max + dnms_corr_value;
-		} else {
-			// error
-			dnms_error = true;
-		}
-	}
-	if (dnms_error) {
-		// es gab einen Fehler
-		dnms_reset(); // try to reset dnms
-		debug_outln_error(F("DNMS read failed"));
-	} else {
-		add_Value2Json(s, F("DNMS_noise_LAeq"), F("LAeq: "), last_value_dnms_laeq);
-		add_Value2Json(s, F("DNMS_noise_LA_min"), F("LA_MIN: "), last_value_dnms_la_min);
-		add_Value2Json(s, F("DNMS_noise_LA_max"), F("LA_MAX: "), last_value_dnms_la_max);
-	}
-	debug_outln_info(FPSTR(DBG_TXT_SEP));
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_DNMS));
-}
 
 /*****************************************************************
  * read GPS sensor values                                        *
@@ -3956,13 +3885,6 @@ static void display_values() {
 	}
 	
 	
-	if (cfg::dnms_read) {
-		la_sensor = FPSTR(SENSORS_DNMS);
-		la_eq_value = last_value_dnms_laeq;
-		la_max_value = last_value_dnms_la_max;
-		la_min_value = last_value_dnms_la_min;
-	}
-	
 	if (cfg::ppd_read || cfg::pms_read || cfg::hpm_read || cfg::sds_read) {
 		screens[screen_count++] = 1;
 	}
@@ -3973,9 +3895,7 @@ static void display_values() {
 		screens[screen_count++] = 3;
 	}
 	
-	if (cfg::dnms_read) {
-		screens[screen_count++] = 5;
-	}
+	
 	if (cfg::display_wifi_info) {
 		screens[screen_count++] = 6;	// Wifi info
 	}
@@ -4231,24 +4151,6 @@ static void initSPS30() {
 	}
 }
 
-/*****************************************************************
-   Init DNMS - Digital Noise Measurement Sensor
- *****************************************************************/
-static void initDNMS() {
-	char dnms_version[DNMS_MAX_VERSION_LEN + 1];
-
-	debug_out(F("Trying DNMS sensor on 0x55H "), DEBUG_MIN_INFO);
-	dnms_reset();
-	delay(1000);
-	if (dnms_read_version(dnms_version) != 0) {
-		debug_outln_info(FPSTR(DBG_TXT_NOT_FOUND));
-		debug_outln_error(F("Check DNMS wiring"));
-		dnms_init_failed = true;
-	} else {
-		dnms_version[DNMS_MAX_VERSION_LEN] = 0;
-		debug_outln_info(FPSTR(DBG_TXT_FOUND), String(": ") + String(dnms_version));
-	}
-}
 
 static void powerOnTestSensors() {
 	if (cfg::ppd_read) {
@@ -4314,11 +4216,6 @@ static void powerOnTestSensors() {
 	}
 
 
-
-	if (cfg::dnms_read) {
-		debug_outln_info(F("Read DNMS..."));
-		initDNMS();
-	}
 }
 static void logEnabledAPIs() {
 	debug_outln_info(F("Send to :"));
@@ -4694,16 +4591,7 @@ void loop(void) {
 			result = emptyString;
 		}
 		
-		
-		
-		if (cfg::dnms_read && (! dnms_init_failed)) {
-			// getting noise measurement values from dnms (optional)
-			fetchSensorDNMS(result);
-			data += result;
-			sum_send_time += sendCFA(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-			sum_send_time += sendSensorCommunity(result, DNMS_API_PIN, FPSTR(SENSORS_DNMS), "DNMS_");
-			result = emptyString;
-		}
+
 		
 		add_Value2Json(data, F("samples"), String(sample_count));
 		add_Value2Json(data, F("min_micro"), String(min_micro));
