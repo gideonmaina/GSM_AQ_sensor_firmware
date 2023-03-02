@@ -216,7 +216,6 @@ namespace cfg {
 	bool pms_read = PMS_READ;
 	bool hpm_read = HPM_READ;
 	bool sps30_read = SPS30_READ;
-	bool bmp_read = BMP_READ;
 	bool bmx280_read = BMX280_READ;
 	bool ds18b20_read = DS18B20_READ;
 	bool dnms_read = DNMS_READ;
@@ -4000,7 +3999,7 @@ static void display_values() {
 	if (cfg::sps30_read) {
 		screens[screen_count++] = 2;
 	}
-	if (cfg::dht_read || cfg::ds18b20_read || cfg::htu21d_read || cfg::bmp_read || cfg::bmx280_read) {
+	if (cfg::dht_read || cfg::ds18b20_read || cfg::htu21d_read || cfg::bmx280_read) {
 		screens[screen_count++] = 3;
 	}
 	
@@ -4737,14 +4736,7 @@ void loop(void) {
 			sum_send_time += sendSensorCommunity(result, HTU21D_API_PIN, FPSTR(SENSORS_HTU21D), "HTU21D_");
 			result = emptyString;
 		}
-		if (cfg::bmp_read && (! bmp_init_failed)) {
-			// getting temperature and pressure (optional)
-			fetchSensorBMP(result);
-			data += result;
-			sum_send_time += sendCFA(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-			sum_send_time += sendSensorCommunity(result, BMP_API_PIN, FPSTR(SENSORS_BMP180), "BMP_");
-			result = emptyString;
-		}
+		
 		if (cfg::bmx280_read && (! bmx280_init_failed)) {
 			// getting temperature, humidity and pressure (optional)
 			fetchSensorBMX280(result);
