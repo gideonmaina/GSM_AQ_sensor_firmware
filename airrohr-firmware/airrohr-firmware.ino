@@ -95,17 +95,12 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #endif
 
 // includes common to ESP8266 and ESP32 (especially external libraries)
-#include "./oledfont.h"				// avoids including the default Arial font, needs to be included before SSD1306.h
-#include <SSD1306.h>
-#include <SH1106.h>
-#include <LiquidCrystal_I2C.h>
+				
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include "./DHT.h"
 #include <SPI.h>
 #include <StreamString.h>
-#include <DallasTemperature.h>
-#include "./bmx280_i2c.h"
 #include <Adafruit_FONA.h>
 
 #if defined(INTL_BG)
@@ -3083,7 +3078,7 @@ void setup(void) {
 	delay(50);
 	digitalWrite(RST_OLED, HIGH);
 #endif
-	Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL);
+	
 	pinMode(PMS_LED, OUTPUT);
 	pinMode(DHT_LED, OUTPUT);
 
